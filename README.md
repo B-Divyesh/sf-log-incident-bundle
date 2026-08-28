@@ -85,7 +85,7 @@ at `/demo`; its sample state uses the separate `demo:` browser namespace.
 ## Paid project license
 
 The core CLI, safety behavior, and exports are free. A $19 one-time project
-license enables saved local cover-sheet and redaction-rule profiles in the
+license enables saved local redaction-rule profiles in the
 companion site. Checkout and license verification use Sociobot. A license token
 can be restored from the landing page after a device change.
 

@@ -19,7 +19,7 @@ words and none uses a banned word.
 | Send one searchable HTML file. | 5 | pass |
 | It does not collect, retain, tail, or host your logs. | 11 | pass |
 | Redaction is pattern-based. Review the final file before sharing it. | 10 | pass |
-| $19 once. Save named cover sheets and redaction rule sets in the local companion site. | 15 | pass |
+| $19 once. Save named redaction-rule profiles in the local companion site. | 11 | pass |
 
 ## Terminology
 
