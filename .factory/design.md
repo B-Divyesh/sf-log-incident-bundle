@@ -1,0 +1,57 @@
+# Log Incident Bundle visual system
+
+## Direction
+
+**Dithered incident printout.** The interface borrows from a field technician's
+annotated incident sheet: dense, deliberate, and built to be printed or passed
+between people. A halftone server-room illustration is the one atmospheric
+element. Everything that carries evidence stays sharply legible.
+
+## Palette
+
+| Token | Value | Use |
+| --- | --- | --- |
+| `--ink` | `#17211f` | Main text and log ink |
+| `--paper` | `#f6f0df` | Warm paper background |
+| `--paper-deep` | `#e8dfc7` | Panel fill and rule tint |
+| `--signal` | `#b7432e` | Redaction and primary actions |
+| `--signal-ink` | `#ffffff` | Text on signal |
+| `--moss` | `#29654c` | Safe/local status |
+| `--night` | `#132329` | Dark log preview |
+| `--night-ink` | `#f7f2e5` | Dark preview text |
+| `--warning` | `#835400` | Caution text |
+
+The product is intentionally single-mode: warm paper makes the artifact feel
+finite and reviewable. The dark evidence strip keeps log text recognisable.
+
+## Type and spacing
+
+`ui-monospace, SFMono-Regular, Menlo, Consolas, monospace` is used for command
+and evidence text. `Georgia, Cambria, serif` carries explanatory copy. This
+pairing separates the human incident note from the machine record without a
+remote font request. Spacing follows an 8px rhythm, with 16px minimum control
+gaps and 24/40/64px section intervals. Evidence columns use tabular numerals.
+
+## Shapes and interaction
+
+Panels have square corners, heavy offset rules, and a restrained dot texture.
+Buttons look like stamped labels. Redaction is shown as a clearly marked block,
+never hidden behind a soft blur. Focus uses a 3px ink outline offset from the
+element. The signature motion is a short (180ms) upward settling of the
+evidence sheet when the demo starts; reduced motion makes it immediate.
+
+## Original asset
+
+`public/incident-press.webp` is an original, generated halftone illustration
+of a compact server rack, a clipped incident page, and an amber status lamp.
+It contains no readable text, product marks, or third-party material. It was
+generated on 2026-08-28 with `/opt/fleet/lib/gen-image.sh` using the factory
+image deployment, then converted to WebP and kept below 300 KB. Prompt:
+
+> Editorial screen-print illustration for a local developer incident bundle:
+> a compact server rack behind a clipped paper evidence sheet, one amber status
+> lamp, coarse newspaper halftone dots, two ink colors (deep charcoal and
+> brick red) on warm cream paper, analogue technical manual feeling, wide
+> landscape composition, no words, no logos, no watermark.
+
+The OpenAI/factory image output is used as an original product asset.
