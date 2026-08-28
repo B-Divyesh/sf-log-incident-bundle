@@ -1,0 +1,30 @@
+[
+  {
+    "id": "portable-html",
+    "claim": "Writes one self-contained HTML file.",
+    "where": "landing facts, README",
+    "test": "cargo test output_contains_self_contained_search",
+    "sandbox": "shipped sample data; assert generated artifact includes search and CSV controls"
+  },
+  {
+    "id": "default-redaction",
+    "claim": "The default rules replace email addresses, bearer tokens, common secret fields, and AWS-style access keys.",
+    "where": "README redaction section",
+    "test": "cargo test redacts_default_secrets",
+    "sandbox": "in-process rules over a fixture with an email, token, and secret field"
+  },
+  {
+    "id": "local-processing",
+    "claim": "Demo log data stays on this device.",
+    "where": "demo banner, README",
+    "test": "npm test -- --grep @claim:local-processing",
+    "sandbox": "fresh browser context at /demo; record every request origin"
+  },
+  {
+    "id": "csv-download",
+    "claim": "Download the sample review as CSV.",
+    "where": "demo toolbar",
+    "test": "npm test -- --grep @claim:csv-download",
+    "sandbox": "fresh browser context at /demo; download and inspect the CSV"
+  }
+]

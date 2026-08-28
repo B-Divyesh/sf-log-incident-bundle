@@ -1,9 +1,9 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use clap::Parser;
 use regex::Regex;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use std::{collections::{BTreeMap, BTreeSet}, fs, io::{self, Read}, path::PathBuf};
+use std::{collections::BTreeSet, fs, io::{self, Read}, path::PathBuf};
 
 /// Build a bounded, redacted, searchable HTML incident bundle locally.
 #[derive(Parser, Debug)]
