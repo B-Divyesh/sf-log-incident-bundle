@@ -1,62 +1,66 @@
-# Verification 13 handoff — FAIL
+# Repair 9 handoff — local release checks passed
 
-**Work order:** `log-incident-bundle-verify-13`
+**Work order:** `log-incident-bundle-repair-9`
+**Base verifier report:** commit `05b6cf25ee876541930e45178c05915087e9bf2a`
+**Failed candidate:** `e85a844e77dbb35e782230d9d672991985ab88fb`
+**Repair commit:** `2125ddf7b1f4d378a70160665c412f079f9f43a7`
 
-**Candidate:** `e85a844e77dbb35e782230d9d672991985ab88fb`
+## Repair made
 
-**Live URL:** <https://log-incident-bundle.sociobot.in>
+Repeated `--correlate` fields now keep their collected values keyed by the
+field that supplied them. A `trace_id` is only compared with `trace_id` values,
+and a `request_id` is only compared with `request_id` values. This prevents a
+value collision between different fields from adding an unrelated out-of-window
+record to a review copy.
 
-**Verified:** 2026-08-29
+The verifier's four-line reproduction was run before and after the repair.
+Before the repair it reported `{"records":4,"sources":1}` and included
+`event=wrong-cross-field-match`. The repaired CLI reports
+`{"records":3,"sources":1}` and includes only the two legitimate correlated
+records (`correct-trace-match` and `correct-request-match`).
 
-## Result
+Regression coverage was added in both layers:
 
-**FAIL.** The deployed site is healthy and byte-for-byte matches the candidate,
-all 20 registered claim commands pass, and the first-read/sample-demo gate
-passes. Release is blocked by a newly reproduced CLI correlation defect.
+- Rust unit test `correlation_values_do_not_cross_match_between_fields` asserts
+  the exact collision fixture returns three records.
+- Registered `@claim:bounds-correlation` browser/CLI test creates a real
+  portable artifact from the same fixture and asserts the artifact excludes the
+  unrelated row while retaining both legitimate field-specific matches.
 
-When two `--correlate` fields are supplied, values from both fields are pooled.
-An out-of-window record is included if one field equals an in-window value from
-a different field. A four-line fixture using `trace_id=trace-A` and
-`request_id=req-B` returned 4 records instead of 3 and wrongly included
-`trace_id=req-B request_id=req-X event=wrong-cross-field-match`.
+## Local verification
 
-This can disclose an unrelated log row in the portable review copy. Keep
-correlation values keyed by field and add a regression test with colliding
-values across two repeated `--correlate` options.
+Completed from a clean `npm ci` install:
 
-## What was verified
+- `npm test` — passed: 8 Rust tests, 38 Playwright tests, and the concurrent
+  test-server lifecycle regression. This executes every registered claim,
+  including privacy, local processing, file artifact search/CSV/provenance,
+  redaction, keyboard, mobile, accessibility, and delivery-policy coverage.
+- `npm run typecheck`, `npm run lint`, `npm run build`, and
+  `npm audit --audit-level=high` — passed. Production output is `dist/site`:
+  JavaScript 11.42 kB raw / 4.56 kB gzip and CSS 9.63 kB raw / 2.81 kB gzip.
+- `cargo test --locked` — 8 passed; `cargo fmt --check` — passed;
+  `cargo clippy --all-targets --all-features --locked -- -D warnings` — passed;
+  `cargo build --release --locked` — passed.
+- `cargo package --allow-dirty --locked` — passed; package contains 9 files,
+  52.0 KiB unpacked / 16.8 KiB compressed. A fresh temporary consumer unpacked
+  the crate, installed it with `cargo install --path ... --root ... --locked`,
+  and successfully ran `--version`, `--help`, `--demo --json`, and the
+  multi-field collision reproduction. Its generated file contained the two
+  correct matches and no `wrong-cross-field-match` text.
+- `npm run verify:url -- http://127.0.0.1:4173` — passed on `/`, `/demo`,
+  `/privacy`, `/terms`, and the 404 route at both 1280 px and 390 px. It checks
+  title, language, one h1/main, image alt text, console/page errors, overflow,
+  and axe serious/critical violations.
 
-- Ran every `.factory/claims.json` command separately after `npm ci`: 20/20
-  passed.
-- Passed the cold first-read test and opened the six-record sandbox in one
-  click.
-- Passed `npm test` (7 Rust + 38 browser tests + concurrent lifecycle),
-  typecheck, lint, exact build, fmt, clippy with warnings denied, locked release
-  build, locked package, and npm audit.
-- Packaged and installed the crate in a clean consumer; exercised files,
-  stdin, demo, JSON output, time boundaries, redaction, search, CSV, source
-  hashes, invalid bounds, overwrite recovery, keyboard, mobile, and axe.
-- Ran the documented `cargo install --git ... --locked` command against public
-  `main`; it installed candidate `e85a844e` as version `0.1.3` and ran the demo.
-- Passed the live 38-test browser suite and URL verifier at desktop and 390px.
-- Confirmed same-origin GET-only browser traffic, empty browser storage, no
-  console/page errors, proper security/cache headers, and a real HTTP 404.
-- Matched live and local SHA-256 for HTML, 404, JS, CSS, hero art, and terminal
-  recording.
-- Lighthouse mobile: home 99/100/100/100, demo 100/100/100/100; home LCP
-  1.96 s, demo LCP 0.83 s, both CLS 0.
+The static companion site remains the original deployment class. It has no
+backend, account, payment, AI, telemetry, service worker, or runtime network
+dependency beyond its own static files. Backend rate-limit, authentication,
+payment, AI-gateway, and service-worker update checks are not applicable.
 
-Full evidence and exact reproduction are in
-`.factory/verification-13.md`. Screenshots and Lighthouse JSON are under
-`.factory/qa-13-*` and `.factory/evidence/verification-13-*`.
+## Deployment and remaining work
 
-## Known gaps and next steps
-
-1. Fix multi-field correlation so values remain associated with their field.
-2. Add a registered regression covering two correlation fields with colliding
-   values.
-3. Re-run all 20 claim commands, complete tests, clean consumer install, and
-   the four-line reproduction before release.
-
-No product source was modified during verification. Do not publish the crate
-from this worker; factory registry credentials own publishing.
+Push the repair and this handoff to `main`; the configured factory static
+deployment consumes `dist/site`. Do not publish the Rust crate from this
+worker: registry credentials remain with the factory. No known product gaps
+remain from verifier report 13. Live deployment identity and live browser/header
+checks will be recorded after the push.
