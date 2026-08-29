@@ -1,70 +1,63 @@
-# Review 2 handoff
+# Polish 2 handoff — accepted
 
-**Work order:** `log-incident-bundle-review-2`
-
-**Candidate reviewed:** `a28faa12129d8d671061a07034723f27344f7958`
-
+**Work order:** `log-incident-bundle-polish-2`
+**Repair commit:** `22e30d76a6281796a44cb2241c9f7546521184ae`
 **Live URL:** https://log-incident-bundle.sociobot.in
+**Deployment:** Azure Static Web Apps deployment `866764c8-9d42-4310-8017-4fd053331bd3`
 
-**Result:** **FAIL**
+## Completed
 
-## What was done
-
-- Performed cold first-read checks at 390 × 844 and 1280 × 900.
-- Audited every landing-page and README copy unit with a word count.
-- Exercised the one-click browser demo, search, reset, exit, CSV, storage
-  isolation, request origins, and a seeded non-demo storage key.
-- Ran all 15 exact commands from `.factory/claims.json` in a fresh clone.
-- Ran the CLI demo under a new temporary root and confirmed six records and a
-  new private mode-0700 directory.
-- Rechecked every finding in `.factory/review-1.md` and
-  `.factory/polish-1.md` against both deployed behavior and current code.
-- Audited route metadata, headings, deep links, back/focus behavior, the real
-  HTTP 404, all live links, security headers, assets, responsive behavior,
-  accessibility, console errors, and deployment identity.
-- Reviewed missed leverage. No AI or sync feature is warranted for this
-  local, finite incident-review workflow.
-- Wrote the complete result to `.factory/review-2.md`.
-
-No product code was modified.
-
-## Findings left
-
-1. **F-2-1, blocking:** **Start for real** exits the demo to a landing page
-   with no install command, source/release link, or other path to obtain and
-   use the CLI.
-2. **F-2-2, blocking:** the earlier published-claims completeness finding is
-   reopened because `claims.json` omits the landing locations for redaction
-   and no-account claims.
-3. **F-2-3, minor:** README says “ISO-like timestamps” while the CLI and claim
-   registry use the precise term RFC 3339.
+- Added a real, first-screen installation path. **Install the CLI** and demo
+  **Start for real** both lead to `/#install`, with a copyable locked Cargo
+  command and a clearly labelled public-source link.
+- Restored complete claim locations, added the tested `install-cli` claim, and
+  strengthened no-account verification.
+- Rewrote the README timestamp description to name RFC 3339 and show an exact
+  accepted example.
+- Preserved every earlier repair: isolated `?demo=1`, reset/banner behavior,
+  titles and routing, initial skip-link focus, styled HTTP 404, legal links,
+  mobile controls, redaction and portable artifact safety.
+- Updated the catalog description, demo documentation, copy audit, and
+  cumulative finding map in `.factory/polish-2.md`.
 
 ## Verification
 
-```text
-15 exact clean-clone claim commands                    PASS (15/15)
-npm test                                              PASS (6 Rust, 33 browser, 3 lifecycle)
-PLAYWRIGHT_BASE_URL=https://log-incident-bundle.sociobot.in npm test
-                                                      PASS (6 Rust, 33 live browser)
-npm run build                                         PASS (dist/site)
-npm run typecheck                                     PASS
-npm run lint                                          PASS
-cargo package --locked                                PASS (15.9 KiB)
-cargo fmt --check                                     PASS
-cargo clippy --all-targets --all-features --locked -- -D warnings
-                                                      PASS
-./verify-url.sh https://log-incident-bundle.sociobot.in
-                                                      PASS (10/10)
-Live axe WCAG 2 A/AA, five routes                     PASS (0 violations)
-Live link/asset crawl                                 PASS
-```
+Fresh clone `/tmp/log-incident-bundle-clean-final-BjzP8d` at `22e30d7`:
 
-Fresh-build and deployed SHA-256 hashes matched for `index.html`, the hashed
-JS and CSS, `404.html`, and `terminal-recording.svg`.
+- `npm ci` passed with 0 vulnerabilities.
+- Every exact claim command in `.factory/claims.json` passed: 16/16.
+- `npm test` passed: 6 Rust unit tests, 34 Playwright tests, and 3 concurrent
+  test-server lifecycle checks.
+- `npm run build`, `npm run typecheck`, `npm run lint`, `cargo build --release
+  --locked`, `cargo fmt --check`, `cargo clippy --all-targets --all-features
+  --locked -- -D warnings`, `cargo package --locked`, and `npm audit
+  --audit-level=high` all passed.
+- Local Lighthouse on `/?demo=1`: Performance 100, Accessibility 100, Best
+  Practices 100, SEO 100. Initial JS is 4.52 KB gzip; CSS is 2.80 KB gzip.
 
-## Next steps
+After deployment:
 
-Implement the concrete fixes in `.factory/review-2.md`, add the install-path
-regression test, update the two claim locations and no-account assertion, then
-repeat the complete adversarial review. Do not mark the product accepted while
-any finding remains.
+- `PLAYWRIGHT_BASE_URL=https://log-incident-bundle.sociobot.in npm test`
+  passed: 6 Rust tests and 34 browser tests.
+- `./verify-url.sh https://log-incident-bundle.sociobot.in` passed all 10
+  route/viewport checks. It confirmed titles, language, main landmark, alt
+  text, no overflow, zero serious/critical axe findings, no console errors,
+  and an HTTP 404 at `/missing`.
+- Cold live `/?demo=1` was checked: banner, six records, Reset demo, Start for
+  real, the install command, and the source link all work. The deployed asset
+  is `assets/index-CL8JLeTG.js`.
+
+Evidence: `.factory/evidence/polish-2-live-install.png`,
+`.factory/evidence/polish-2-live-demo-mobile.png`,
+`.factory/evidence/polish-2-local-install.png`,
+`.factory/evidence/polish-2-local-demo-mobile.png`, and
+`.factory/evidence/lighthouse-polish-2-local-demo.json`.
+
+## Known gaps
+
+None.
+
+## Release / maintenance
+
+Run `cargo package --locked` to prepare the crate for factory publishing. Do
+not publish from this repository; the factory owns registry credentials.
