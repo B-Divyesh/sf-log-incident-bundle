@@ -73,8 +73,9 @@ neither moved nor duplicated.
 
 ## Deployment and live checks
 
-- Pushed `671b545`, `c988c1b`, and `d9890d7` to `main`; remote `main` is
-  `d9890d76d7ce09e7d61cdfdba49af947491a64fb`.
+- Pushed `671b545`, `c988c1b`, and `d9890d7` to `main` before deployment.
+  Later commits only record the verification evidence; they do not change the
+  built CLI or static product artifact.
 - Deployed using the work order's exact static configuration:
   `npm ci && npm run build:site`, then
   `/opt/fleet/lib/deploy-static.sh log-incident-bundle dist/site`.
