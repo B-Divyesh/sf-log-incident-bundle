@@ -102,8 +102,10 @@ cargo test
 cargo build --release
 ```
 
-`npm test` runs the local CLI tests and browser checks. Site pages load runtime
-files only from the product website.
+`npm test` runs the local CLI tests, browser checks, and concurrent test-server
+lifecycle regression. Each browser-test process owns a temporary build and an
+ephemeral local port. Site pages load runtime files only from the product
+website.
 
 To prepare the Rust crate for publishing, run:
 

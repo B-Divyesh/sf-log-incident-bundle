@@ -7,7 +7,6 @@ import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const root = process.cwd();
-const siteOrigin = new URL(process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4173').origin;
 
 function contrastRatio(first: string, second: string) {
   const luminance = (color: string) => {
@@ -27,7 +26,7 @@ async function makeBundle(input: string, options: string[] = []) {
   return { output, url: pathToFileURL(output).href };
 }
 
-test('@claim:local-processing demo stays in memory and sends requests only to this origin', async ({ page }) => {
+test('@claim:local-processing demo stays in memory and sends requests only to this origin', async ({ page, baseURL }) => {
   const origins = new Set<string>();
   page.on('request', request => origins.add(new URL(request.url()).origin));
   await page.goto('/demo');
@@ -45,17 +44,17 @@ test('@claim:local-processing demo stays in memory and sends requests only to th
     for await (const [name] of root.entries()) names.push(name);
     return names;
   })).toEqual([]);
-  expect([...origins]).toEqual([siteOrigin]);
+  expect([...origins]).toEqual([new URL(baseURL!).origin]);
 });
 
-test('@claim:site-runtime site pages load runtime files only from this website', async ({ page }) => {
+test('@claim:site-runtime site pages load runtime files only from this website', async ({ page, baseURL }) => {
   const origins = new Set<string>();
   page.on('request', request => origins.add(new URL(request.url()).origin));
   for (const path of ['/', '/demo', '/privacy', '/terms']) {
     await page.goto(path);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   }
-  expect([...origins]).toEqual([siteOrigin]);
+  expect([...origins]).toEqual([new URL(baseURL!).origin]);
 });
 
 test('@claim:site-log-privacy website has no log upload or account feature', async ({ page }) => {
@@ -289,24 +288,24 @@ test('fresh loads start keyboard navigation at the skip link', async ({ page }) 
   await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused();
 });
 
-test('legal routes set page titles', async ({ page }) => {
+test('legal routes set page titles', async ({ page, baseURL }) => {
   await page.goto('/privacy');
   await expect(page).toHaveTitle('Privacy — Log Incident Bundle');
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `${siteOrigin}/privacy`);
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `${new URL(baseURL!).origin}/privacy`);
   await expect(page.locator('main h1')).toHaveCount(1);
   await page.goto('/terms');
   await expect(page).toHaveTitle('Terms — Log Incident Bundle');
 });
 
-test('demo route sets its canonical URL', async ({ page }) => {
+test('demo route sets its canonical URL', async ({ page, baseURL }) => {
   await page.goto('/demo');
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `${siteOrigin}/demo`);
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `${new URL(baseURL!).origin}/demo`);
 });
 
-test('query demo entry is isolated and uses demo metadata', async ({ page }) => {
+test('query demo entry is isolated and uses demo metadata', async ({ page, baseURL }) => {
   await page.goto('/?demo=1');
   await expect(page).toHaveTitle('Demo — Log Incident Bundle');
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `${siteOrigin}/demo`);
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `${new URL(baseURL!).origin}/demo`);
   await expect(page.getByRole('status')).toContainText('Demo — sample data, nothing is saved');
   await expect(page.locator('#records tr')).toHaveCount(6);
   expect(await page.evaluate(() => ({ ...localStorage }))).toEqual({});

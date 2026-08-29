@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Give each browser-test invocation its own temporary site build and preview
+  port so independently run claim commands cannot lose a shared server.
+- Add a concurrent regression for the three site claim commands that exposed
+  the preview-server shutdown race.
+
 ## 0.1.2 — 2026-08-29
 
 - Refuse output/input aliases and every pre-existing output path.
