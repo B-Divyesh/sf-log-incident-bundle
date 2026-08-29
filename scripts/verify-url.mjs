@@ -32,13 +32,16 @@ try {
       if (facts.lang !== 'en' || facts.h1 !== 1 || facts.main !== 1 || facts.missingAlt !== 0 || facts.overflow > 0) {
         throw new Error(`${route}: structural check failed ${JSON.stringify(facts)}`);
       }
-      await page.addScriptTag({ content: axe.source });
+      await page.evaluate(axe.source);
       const violations = await page.evaluate(async () => {
         const results = await globalThis.axe.run();
         return results.violations.filter(issue => issue.impact === 'serious' || issue.impact === 'critical');
       });
       if (violations.length) throw new Error(`${route}: axe violations ${JSON.stringify(violations.map(issue => issue.id))}`);
-      if (errors.length) throw new Error(`${route}: browser errors ${JSON.stringify(errors)}`);
+      const unexpectedErrors = route === '/missing'
+        ? errors.filter(error => !error.includes('server responded with a status of 404'))
+        : errors;
+      if (unexpectedErrors.length) throw new Error(`${route}: browser errors ${JSON.stringify(unexpectedErrors)}`);
       console.log(`PASS ${viewport.width}px ${route} HTTP ${response.status()} — ${facts.title}`);
       await page.close();
     }

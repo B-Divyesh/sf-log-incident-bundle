@@ -21,6 +21,20 @@
     "sandbox": "run the CLI once with a named sample file and once with the same record on stdin; assert both artifacts contain exactly one record and the correct source"
   },
   {
+    "id": "bounds-correlation",
+    "claim": "RFC 3339 time bounds select the initial window, then correlation includes matching trace records outside it.",
+    "where": "README make-a-review section",
+    "test": "npm test -- --grep @claim:bounds-correlation",
+    "sandbox": "run the shipped sample with a two-second window and trace_id correlation; assert six linked records and no unrelated health check"
+  },
+  {
+    "id": "custom-redaction",
+    "claim": "A local label=regex file adds redaction rules.",
+    "where": "README redaction section",
+    "test": "npm test -- --grep @claim:custom-redaction",
+    "sandbox": "write a temporary local rule file; generate an artifact; assert its matching customer ID is replaced with the named marker"
+  },
+  {
     "id": "local-processing",
     "claim": "The browser demo uses six fixed sample records in memory and writes no demo data to browser storage.",
     "where": "demo banner, privacy page, README, demo documentation",
@@ -68,5 +82,12 @@
     "where": "landing facts, terms, README license",
     "test": "npm test -- --grep @claim:mit-license",
     "sandbox": "read the shipped LICENSE; inspect home and terms; assert no checkout link exists"
+  },
+  {
+    "id": "delivery-policy",
+    "claim": "The static deployment config defines security headers, immutable hashed assets, route rewrites, and a real 404 page.",
+    "where": "README deploy section",
+    "test": "npm test -- --grep @claim:delivery-policy",
+    "sandbox": "parse the shipped Static Web Apps config and assert framing protection, immutable asset caching, known routes, and the 404 override"
   }
 ]

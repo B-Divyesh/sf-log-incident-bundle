@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const root = process.cwd();
+const siteOrigin = new URL(process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4173').origin;
 
 async function makeBundle(input: string, options: string[] = []) {
   const directory = await mkdtemp(join(tmpdir(), 'log-incident-bundle-e2e-'));
@@ -25,6 +26,7 @@ test('@claim:local-processing demo stays in memory and sends requests only to th
   await expect(page.getByRole('heading', { name: 'Did the retry cause duplicate charges?' })).toBeVisible();
   await page.getByLabel('Search records').fill('timeout');
   await page.getByRole('button', { name: 'Reset demo' }).click();
+  await expect(page.locator('#records tr')).toHaveCount(6);
   expect(await page.evaluate(() => ({ ...localStorage }))).toEqual({});
   expect(await page.evaluate(() => ({ ...sessionStorage }))).toEqual({});
   expect(await page.evaluate(async () => (await indexedDB.databases()).map(database => database.name))).toEqual([]);
@@ -34,7 +36,7 @@ test('@claim:local-processing demo stays in memory and sends requests only to th
     for await (const [name] of root.entries()) names.push(name);
     return names;
   })).toEqual([]);
-  expect([...origins]).toEqual(['http://127.0.0.1:4173']);
+  expect([...origins]).toEqual([siteOrigin]);
 });
 
 test('@claim:site-runtime site pages load runtime files only from this website', async ({ page }) => {
@@ -44,7 +46,7 @@ test('@claim:site-runtime site pages load runtime files only from this website',
     await page.goto(path);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   }
-  expect([...origins]).toEqual(['http://127.0.0.1:4173']);
+  expect([...origins]).toEqual([siteOrigin]);
 });
 
 test('@claim:site-log-privacy website has no log upload or account feature', async ({ page }) => {
@@ -125,6 +127,39 @@ test('@claim:cli-inputs CLI reads a chosen file or standard input', async () => 
   expect(await readFile(stdinOutput, 'utf8')).toContain('stdin');
 });
 
+test('@claim:bounds-correlation CLI applies time bounds and follows matching trace records', async () => {
+  const sample = await readFile(join(root, 'examples/payment-api.log'), 'utf8');
+  const bundle = await makeBundle(sample, ['--from', '2026-08-22T14:01:34Z', '--to', '2026-08-22T14:01:35Z', '--correlate', 'trace_id']);
+  const html = await readFile(bundle.output, 'utf8');
+  expect(JSON.parse(html.match(/<script id="bundle-data" type="application\/json">(.*?)<\/script>/s)![1]).records).toHaveLength(6);
+  expect(html).not.toContain('healthcheck=ok');
+});
+
+test('@claim:custom-redaction CLI applies reviewable local regex rules', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'log-incident-bundle-rules-'));
+  const rules = join(directory, 'rules.txt');
+  await writeFile(rules, 'customer id=customer_id=[A-Za-z0-9_-]+\n');
+  const bundle = await makeBundle('2026-08-22T14:01:01Z customer_id=cust_123 status=ok', ['--redact-file', rules]);
+  const html = await readFile(bundle.output, 'utf8');
+  expect(html).not.toContain('customer_id=cust_123');
+  expect(html).toContain('[REDACTED:CUSTOMER ID]');
+});
+
+test('@claim:delivery-policy build config defines framing, caching, and real 404 policy', async () => {
+  const config = JSON.parse(await readFile(join(root, 'public/staticwebapp.config.json'), 'utf8')) as {
+    routes: Array<{ route: string; headers?: Record<string, string> }>;
+    responseOverrides: Record<string, { rewrite: string }>;
+    globalHeaders: Record<string, string>;
+  };
+  expect(config.globalHeaders['Content-Security-Policy']).toContain("frame-ancestors 'none'");
+  expect(config.globalHeaders['X-Frame-Options']).toBe('DENY');
+  expect(config.globalHeaders['X-Content-Type-Options']).toBe('nosniff');
+  expect(config.globalHeaders['Referrer-Policy']).toBe('strict-origin-when-cross-origin');
+  expect(config.routes.find(route => route.route === '/assets/*')?.headers?.['Cache-Control']).toContain('immutable');
+  expect(config.routes.filter(route => ['/demo', '/privacy', '/terms'].includes(route.route))).toHaveLength(3);
+  expect(config.responseOverrides['404'].rewrite).toBe('/404.html');
+});
+
 test('generated bundle keeps script-boundary content inert', async ({ page }) => {
   const payload = '</script><script>window.__qa_script_boundary=1</script>';
   const bundle = await makeBundle(`2026-08-22T14:01:34Z trace_id=x payload=${payload}`, ['--title', payload, '--question', payload]);
@@ -186,9 +221,15 @@ test('keyboard path reaches demo and filters records', async ({ page }) => {
 test('legal routes set page titles', async ({ page }) => {
   await page.goto('/privacy');
   await expect(page).toHaveTitle('Privacy — Log Incident Bundle');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `${siteOrigin}/privacy`);
   await expect(page.locator('main h1')).toHaveCount(1);
   await page.goto('/terms');
   await expect(page).toHaveTitle('Terms — Log Incident Bundle');
+});
+
+test('demo route sets its canonical URL', async ({ page }) => {
+  await page.goto('/demo');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `${siteOrigin}/demo`);
 });
 
 test('demo reset and exit discard the demo namespace', async ({ page }) => {
@@ -209,7 +250,7 @@ test('route navigation moves focus to the new page heading', async ({ page }) =>
 
 test('demo has no serious or critical accessibility violations', async ({ page }) => {
   await page.goto('/demo');
-  await page.addScriptTag({ content: axe.source });
+  await page.evaluate(axe.source);
   const violations = await page.evaluate(async () => {
     const results = await (window as unknown as { axe: typeof axe }).axe.run();
     return results.violations.filter(issue => issue.impact === 'serious' || issue.impact === 'critical');

@@ -38,6 +38,8 @@ function notFound() { document.title = 'Page not found — Log Incident Bundle';
 function route() {
   const path = location.pathname;
   if (path === '/' && !isDemo()) landing(); else if (isDemo()) demo(); else if (path === '/privacy') legal('privacy'); else if (path === '/terms') legal('terms'); else notFound();
+  const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  if (canonical) canonical.href = `${location.origin}${isDemo() ? '/demo' : path}`;
   requestAnimationFrame(() => {
     const heading = document.querySelector<HTMLElement>('h1');
     if (heading) {
