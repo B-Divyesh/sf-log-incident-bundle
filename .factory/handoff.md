@@ -1,3 +1,23 @@
+# Review 4 handoff — PASS
+
+**Candidate:** `dc1a96a99499992dc3bf826c34bd8960f7164a98`
+**Live URL:** <https://log-incident-bundle.sociobot.in>
+**Verified:** 2026-08-29 UTC
+
+## Review 4 result
+
+Performed an adversarial first-read review without changing product code. The new [review-4.md](review-4.md) records a **PASS** with zero findings, the cold-read result, full landing/README copy audit, demo/privacy checks, all claim results, history recheck, structure check, and missed-leverage check.
+
+- Fresh clone: `npm ci`; all 20 exact `.factory/claims.json` commands passed.
+- Full clean-clone checks passed: `npm test` (8 Rust, 38 browser, lifecycle), `npm run build`, `npm run typecheck`, `cargo fmt --check`, strict Clippy, and release build.
+- Live `npm run verify:url -- https://log-incident-bundle.sociobot.in` passed every route at desktop and 390 px, including real HTTP 404.
+- Fresh live browser contexts confirmed first-read clarity, same-origin GET-only traffic, six-record one-click demo, reset, empty demo storage, and preservation of a separately seeded real-storage sentinel.
+- `cargo run -- --demo --json` created its six-record review in a unique mode-0700 temporary directory.
+
+**Known gaps / next steps:** none. This review changed documentation only.
+
+---
+
 # Verification 14 handoff — PASS
 
 **Candidate:** `9e07793f00c1a4f8187b7b5981f0afd8ef0855a9`
