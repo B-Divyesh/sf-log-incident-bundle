@@ -1,123 +1,130 @@
-# Handoff — Log Incident Bundle verification 3
+# Handoff — Log Incident Bundle repair 3
 
-## Status: FAIL — do not release
+## Status
 
-Independent verification of candidate
-`90636649f8778982ec64219a8b838823401d2055` at
-https://log-incident-bundle.sociobot.in completed on 2026-08-29 UTC. The live
-site is byte-identical to the candidate build, so this is not a deployment-only
-failure. Full evidence is in `.factory/verification-3.md`.
+**PASS — release blockers repaired, pushed, and deployed.**
 
-Release blockers remain in the CLI's real output:
+The repaired product remains a Rust CLI with a static companion site. The
+final code candidate is `719d51eb067b6f6f1712b7856a3e3dcc85b0df0c` on
+`main`. Production is `https://log-incident-bundle.sociobot.in`.
 
-- **High:** several material privacy, local-processing, licensing/price, and
-  no-analytics promises in the landing/README have no corresponding
-  `.factory/claims.json` entry and observable claim test, which the claims
-  contract treats as a release blocker.
-- **High:** default redaction leaves `ASIA1234567890ABCDEF` (a valid AWS STS
-  temporary access-key ID) and `token=plain-secret-value` visible in the
-  produced HTML despite claiming coverage for AWS-style keys/common secret
-  fields.
-- **Medium:** the actual generated review document overflows at 390 px
-  (`scrollWidth` 669 px for 390 px viewport) because its unbroken SHA-256
-  provenance value cannot wrap.
-- **Medium:** deployed CSP lacks the required `frame-ancestors` response-header
-  directive; no `X-Frame-Options` fallback is present.
+## Exact failure reproduced first
 
-No product code was changed during this verification; this update only records
-the independent QA outcome.
+Before changes, the verifier's stdin record produced an HTML artifact that
+still contained `ASIA1234567890ABCDEF` and `plain-secret-value`; only the
+Bearer value was replaced. The root causes were an `AKIA`-only AWS expression
+and a secret-field list without plain `token`.
 
-## Verification completed
-
-- Ran all five commands in `.factory/claims.json` after clean `npm ci`; all
-  command-level claims pass.
-- `npm test` (4 Rust + 15 Playwright), typecheck, lint, Vite production build,
-  rustfmt, clippy with warnings denied, release build, and `cargo package` all
-  pass.
-- Installed the packed crate into a clean consumer and exercised `--version`,
-  `--help`, `--demo --json`, stdin, correlation, and missing-input recovery.
-- Confirmed generated artifact search, CSV, provenance, `file:` isolation,
-  script safety, and axe; found the mobile overflow above.
-- Confirmed live/home/demo/legal/404 behavior, desktop/390 px demo, keyboard
-  focus, reduced motion, same-origin demo requests, response headers, immutable
-  hashed assets, and byte-for-byte live build identity.
-- Lighthouse mobile `/demo`: 99 performance / 99 accessibility.
-- Verified product-license endpoint rate limiting: 30 requests allowed in the
-  observed window; 31st received HTTP 429 with `Retry-After: 3`.
+The final regression uses that exact record in both Rust and Chromium. It also
+adds quoted JSON secret fields and a permanent `AKIA` key. The test asserts
+that every raw value is absent from the generated file and browser-visible
+review, while the named redaction markers remain visible.
 
 ## Repairs
 
-- Fixed the generated HTML attributes and moved bundle data into a safely
-  serialized JSON script element. Every `<` becomes `\u003c`, so a log,
-  title, question, or source string cannot terminate the data script. Generated
-  artifacts now set a nonce-based restrictive CSP and still work from `file:`.
-- Added an actual browser regression over a CLI-generated artifact: six rows,
-  search, CSV download, source SHA-256 provenance, valid `lang`, no browser
-  errors, and no non-file network request are all asserted.
-- Default redaction now covers quoted JSON `apiKey`, `password`, and
-  `access_token` fields as well as the existing email, bearer token, and
-  AWS-style key rules. Both Rust and browser-visible regressions cover them.
-- `--from` and `--to` now require RFC 3339 values and reject inverted ranges
-  before an output file is written. `--demo` now applies the advertised time
-  window and `trace_id` correlation, yielding exactly six records.
-- Removed the demo marker write. Reset and exit clear the legacy scoped marker
-  if present, while demo state remains in memory and never reads a saved
-  license. Mobile controls now meet 44×44 px, SPA navigation focuses the new
-  heading, and a returned inactive license verifies once and shows a quiet
-  notice.
-- Updated Vite to 7.3.6, removed unused Vitest, added TypeScript type/lint
-  scripts, generated a 1200×630 social card from the existing original art,
-  and configured immutable cache headers for assets. Known application routes
-  have explicit rewrites so an unknown static route receives the configured
-  HTTP 404 response.
+- Default redaction now recognizes both `AKIA` and AWS STS `ASIA` access-key
+  IDs. Plain `token=`, JSON `token`, `access_token`, `apiKey`, password,
+  secret, email, and Bearer fixtures are covered.
+- Generated artifacts wrap SHA-256 provenance and record cells. A real
+  CLI-generated artifact now has `scrollWidth === innerWidth === 390`.
+- The claim registry now contains 13 public claims, each with exactly one
+  `@claim:<id>` browser test. Copy, README, privacy, terms, demo docs, and tests
+  use the same local-processing, input, redaction, delivery, and license facts.
+- The prior $19 offer was removed because its checkout URL returned HTTP 404
+  and no product was registered. The shipped CLI and site are now described
+  consistently as MIT licensed with no account, purchase flow, or paid tier.
+- Browser demo state remains in memory. Tests assert empty localStorage,
+  sessionStorage, IndexedDB, and OPFS after search and reset. All site runtime
+  requests remain same-origin.
+- Static response policy now sends `frame-ancestors 'none'` in CSP plus
+  `X-Frame-Options: DENY`. The external API was removed from `connect-src`
+  because no runtime flow uses it.
+- Added `verify-url.sh`, which checks HTTP status, title, language, one `h1`,
+  one `main`, image alt text, page overflow, browser errors, and axe
+  serious/critical findings at desktop and 390 px.
+- SPA routes now set their own canonical URL. Mobile demo tables drop the
+  service column so evidence remains readable without page-level scrolling.
+- Version is `0.1.1` across Cargo, npm metadata, changelog, package output, and
+  the site footer.
 
-## Exact local verification
+## Verification evidence
 
-Run from a clean checkout:
+### Clean clone
+
+A fresh clone of
+`719d51eb067b6f6f1712b7856a3e3dcc85b0df0c` passed:
 
 ```sh
 npm ci
-npm test                         # 4 Rust + 15 Playwright tests pass
+npm test
 npm run typecheck
 npm run lint
-npm run build                    # dist/site; JS 12.29 kB / 4.91 kB gzip, CSS 7.53 kB / 2.46 kB gzip
-npm audit --audit-level=high     # 0 vulnerabilities
+npm run build
+npm audit --audit-level=high
 cargo fmt --check
 cargo clippy --all-targets --all-features -- -D warnings
 cargo build --release
-cargo package --allow-dirty      # package verification passes before commit
+cargo package
 ```
 
-All declared claim commands pass individually:
+Results: 4 Rust tests and 24 Playwright tests passed; npm reported 0
+vulnerabilities. The build writes `dist/site`: JS 8.73 kB / 3.67 kB gzip and
+CSS 7.60 kB / 2.48 kB gzip.
 
-```sh
-npm test -- --grep @claim:portable-html
-npm test -- --grep @claim:default-redaction
-npm test -- --grep @claim:local-processing
-npm test -- --grep @claim:csv-download
-npm test -- --grep @claim:demo-cli
-```
+Every command declared by `.factory/claims.json` was also run separately and
+passed for `portable-html`, `default-redaction`, `cli-inputs`,
+`bounds-correlation`, `custom-redaction`, `local-processing`, `site-runtime`,
+`site-log-privacy`, `csv-download`, `demo-cli`, `finite-review`, `mit-license`,
+and `delivery-policy`.
 
-The browser suite includes desktop, 390 px mobile, keyboard focus, generated
-artifact security, demo isolation, same-origin privacy, CSV, mocked returned
-license policy, console/page errors, and axe serious/critical checks. The
-artifact itself is the offline path: its regression opens the generated
-`file:` document without any server or external request. The site does not
-claim offline reload and is not a PWA, so no service-worker update flow applies.
+### Package and consumer
 
-`cargo package --allow-dirty` was also installed into a fresh temporary
-consumer root. The installed binary reported version `0.1.0` and
-`--demo --json` produced the six-record artifact.
+`cargo package --allow-dirty` produced
+`log-incident-bundle-0.1.1.crate`. A fresh `cargo install --path` consumer
+reported `log-incident-bundle 0.1.1`; `--help`, `--demo --json`, named-file
+input, stdin input, exact STS/token redaction, and missing-file non-zero exit
+all passed. The demo produced six records.
 
-## Deployment and live verification
+### Browser, accessibility, privacy, and offline path
 
-The final combined `main` state was deployed from `dist/site` to the existing
-Standard Static Web App (`https://white-tree-0ef6c7810.7.azurestaticapps.net`)
-and the production custom domain returned 200. Live JS SHA-256 matched the
-local build at `faf10d13e1de700697ab3fbae947737334c143467f03af16c473aa4eb70cfd99`;
-live CSS matched at
-`4baa4e30b520360eb4cd439d6e2748f095d832d80cee1dc808f5ac4c856f0700`.
-Hashed JS has `Cache-Control: public, max-age=31536000, immutable`, and
-`/missing` returns HTTP 404. Desktop `/demo` has six rows, working search, no
-errors, same-origin-only requests, and axe 0 serious/critical issues. At 390px
-it has no overflow, 44px demo controls, and Reset leaves no marker.
+- The full 24-test browser suite passed against production after deployment.
+  It covers desktop, 390 px, touch sizes, keyboard Enter, route focus, reset,
+  CSV, no-match recovery, console errors, privacy requests, storage isolation,
+  generated `file:` artifacts, script-boundary safety, and axe.
+- `./verify-url.sh https://log-incident-bundle.sociobot.in` passed `/`,
+  `/demo`, `/privacy`, `/terms`, and `/missing` at 1280 and 390 px. The missing
+  route returns HTTP 404. Axe found zero serious or critical issues.
+- The generated artifact is the offline product path. It opens from `file:`,
+  makes no non-`file:` request, and retains search and CSV. This static site is
+  not a PWA, so service-worker offline/update checks do not apply.
+- Final live Lighthouse mobile `/demo`: Performance 100, Accessibility 100,
+  Best Practices 100, SEO 100, LCP 0.8 s, CLS 0, TBT 0 ms, total transfer 7
+  KiB. JSON is in `.factory/evidence/lighthouse-repair-live.json`.
+- Final desktop and 390 px screenshots are
+  `.factory/evidence/repair-live-demo-desktop.png` and
+  `.factory/evidence/repair-live-demo-mobile-390.png`.
+
+### Deployment and identity
+
+`dist/site` was deployed to the existing Standard Static Web App
+`sf-log-incident-bundle` using the work order's production deployment token.
+No DNS, billing, or other infrastructure was changed.
+
+Local and live SHA-256 values match exactly:
+
+| File | SHA-256 |
+| --- | --- |
+| `index.html` | `da2541e350ecf983c24354496c5282986d826b2b2d1f780930398a149b9a21d7` |
+| `assets/index-3DnHfvAM.js` | `3f0b17ebb4259db6f83aaec6b5f7f3c83b7cb6521348530179ddcd544ba390d4` |
+| `assets/index-zD8wX4FC.css` | `b29d0312f60009baa3e7f135974dff60693a1816ac112ee84f34b68162e97127` |
+
+Live `/`, `/demo`, `/privacy`, `/terms`, and `/missing` send CSP with
+`frame-ancestors 'none'`, `DENY` framing, `nosniff`, and strict-origin referrer
+policy. Hashed assets send `public, max-age=31536000, immutable`; HTML uses the
+short revalidation policy.
+
+## Known gaps
+
+No release-blocking gaps remain. Pattern redaction is intentionally presented
+as review assistance, not a guarantee; the CLI and generated artifact both
+tell the user to inspect the review copy before sharing.
