@@ -61,16 +61,15 @@ No audited sentence exceeds 22 words or uses a banned marketing word.
 | Start for real | 3 | `install-cli` demo exit. |
 | CHECKOUT TIMEOUT · 22 AUG 2026 · SAMPLE | 6 | Sample label. |
 | Did the retry cause duplicate charges? | 6 | Demo heading. |
-| Search the redacted excerpt. | 4 | Demo instruction. |
-| The full trace is included. | 5 | Demo instruction. |
+| Search the six redacted sample records. | 6 | `demo-search`. |
 | Search records | 2 | Search label. |
 | Download CSV | 2 | `csv-download`. |
-| Redactions shown: email and bearer token. | 6 | Sample note. |
-| Review rules are listed in the CLI output. | 9 | Sample note. |
+| Sample markers show email and bearer-token redaction. | 6 | `demo-redaction-preview`. |
+| The generated review lists each redaction rule. | 7 | `redaction-rule-provenance`. |
 | Six correlated records from payment-api.log | 5 | Sample table caption. |
-| Review cue | 2 | Demo section heading. |
-| The ledger confirmed one charge after the retry. | 8 | Sample finding. |
-| The final payment response reports `duplicate_charge=false`. | 6 | Sample finding. |
+| What the records show | 4 | Demo conclusion heading. |
+| The sample ledger record confirms one charge after the retry. | 10 | `demo-conclusion`. |
+| The sample payment response reports `duplicate_charge=false`. | 6 | `demo-conclusion`. |
 | Built by Param Factory · v0.1.3 | 6 | Required attribution. |
 
 ## README
@@ -124,6 +123,9 @@ No audited sentence exceeds 22 words or uses a banned marketing word.
 Commands, headings, and literal rule examples are intentional labels or input,
 not sentences. Every visitor-facing README sentence appears in this table.
 
+The README heading **What the CLI does not do** names the finite-review limit
+out of context. It replaces the vague heading **Scope**.
+
 | Concept | One term |
 | --- | --- |
 | Portable output | review copy |
@@ -133,4 +135,4 @@ not sentences. Every visitor-facing README sentence appears in this table.
 | Sample environment | demo |
 | Time format | RFC 3339 timestamp |
 
-Catalog description: **Create a redacted incident log review copy for teammates.** (10 words)
+Catalog description: **Create a redacted incident review from logs.** (7 words)

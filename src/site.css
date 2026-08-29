@@ -486,6 +486,10 @@ h2 {
   border: var(--rule);
   background: var(--night);
 }
+.table-wrap:focus-visible {
+  outline-color: var(--moss);
+  outline-offset: 4px;
+}
 table {
   width: 100%;
   min-width: 720px;
@@ -571,6 +575,11 @@ footer p:last-child {
       opacity: 1;
       transform: translateY(0) rotate(1.5deg);
     }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
   }
 }
 @media (max-width: 720px) {

@@ -132,7 +132,7 @@ The factory deploys the static companion site from `dist/site`. Run
 route rewrites, a 404 page, and cache rules for hashed assets. Push an approved
 commit to `main` for the factory deployment.
 
-## Scope
+## What the CLI does not do
 
 The CLI creates a finite review copy. It is not a live log service.
 

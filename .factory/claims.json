@@ -9,7 +9,7 @@
   {
     "id": "default-redaction",
     "claim": "Default rules replace email addresses, bearer tokens, common secret fields including OAuth tokens, authorization, credentials, sessions, cookies, and private keys, plus AKIA or ASIA AWS access-key IDs.",
-    "where": "landing hero, landing action, README redaction section",
+    "where": "landing hero, landing action, catalog description, README redaction section",
     "test": "npm test -- --grep @claim:default-redaction",
     "sandbox": "generate a browser-visible artifact containing client_secret, refresh_token, id_token, private_key, Basic authorization, session, cookie, prefix/suffix variants, and structured JSON fields; assert every raw secret is absent from the file and rendered view"
   },
@@ -40,6 +40,13 @@
     "where": "README redaction section",
     "test": "npm test -- --grep @claim:custom-redaction",
     "sandbox": "write a temporary local rule file; generate an artifact; assert its matching customer ID is replaced with the named marker"
+  },
+  {
+    "id": "redaction-rule-provenance",
+    "claim": "Generated review copies list the default and supplied local redaction-rule labels.",
+    "where": "demo review note",
+    "test": "npm test -- --grep @claim:redaction-rule-provenance",
+    "sandbox": "generate a review with one local customer-id rule; open the artifact and assert the provenance lists the five default labels and the supplied label"
   },
   {
     "id": "local-processing",
@@ -77,6 +84,27 @@
     "sandbox": "fresh browser context at /demo; download and inspect the CSV header and six records"
   },
   {
+    "id": "demo-search",
+    "claim": "The browser demo searches its six redacted sample records and restores them when the search is cleared.",
+    "where": "demo lead and search toolbar",
+    "test": "npm test -- --grep @claim:demo-search",
+    "sandbox": "fresh browser context at /?demo=1; search for ledger, assert one matching record, clear the search, and assert all six records return"
+  },
+  {
+    "id": "demo-redaction-preview",
+    "claim": "The browser demo shows email and bearer-token redaction markers in its sample records.",
+    "where": "demo review note",
+    "test": "npm test -- --grep @claim:demo-redaction-preview",
+    "sandbox": "fresh browser context at /?demo=1; assert the two named redaction markers are visible in the sample record rows"
+  },
+  {
+    "id": "demo-conclusion",
+    "claim": "The sample records show one confirmed charge after retry and duplicate_charge=false.",
+    "where": "demo conclusion",
+    "test": "npm test -- --grep @claim:demo-conclusion",
+    "sandbox": "fresh browser context at /?demo=1; inspect the ledger and final payment records, then assert the matching sample conclusion is visible"
+  },
+  {
     "id": "demo-cli",
     "claim": "The CLI demo creates the six-record correlated checkout review in a private, unique temporary directory without reusing files or symlinks.",
     "where": "landing preview, README demo section, /demo",
@@ -93,7 +121,7 @@
   {
     "id": "finite-review",
     "claim": "The CLI creates a finite review copy, not a live log service.",
-    "where": "landing scope, README scope",
+    "where": "landing scope, README what-the-CLI-does-not-do section",
     "test": "npm test -- --grep @claim:finite-review",
     "sandbox": "run the demo command with a timeout; assert it exits with a six-record file and exposes no server, watch, listen, or tail option"
   },

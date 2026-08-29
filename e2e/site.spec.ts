@@ -272,6 +272,24 @@ test('@claim:custom-redaction CLI applies reviewable local regex rules', async (
   expect(html).toContain('[REDACTED:CUSTOMER ID]');
 });
 
+test('@claim:redaction-rule-provenance generated review lists default and local rule labels', async ({ page }) => {
+  const directory = await mkdtemp(join(tmpdir(), 'log-incident-bundle-provenance-'));
+  const rules = join(directory, 'rules.txt');
+  try {
+    await writeFile(rules, 'customer id=customer_id=([A-Za-z0-9_-]+)\n');
+    const bundle = await makeBundle(
+      '2026-08-22T14:01:01Z customer_id=cust_private_73 status=ok',
+      ['--redact-file', rules]
+    );
+    await page.goto(bundle.url);
+    await expect(page.locator('.meta')).toContainText(
+      'Redaction rules: private key, email, bearer token, secret field, AWS access key ID, customer id'
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('@claim:delivery-policy build config defines framing, caching, and real 404 policy', async () => {
   const config = JSON.parse(await readFile(join(root, 'public/staticwebapp.config.json'), 'utf8')) as {
     routes: Array<{ route: string; headers?: Record<string, string> }>;
@@ -367,13 +385,30 @@ test('@claim:install-cli landing and demo lead to a usable source install path',
   await expect(page.locator('#install-command')).toHaveText(command);
 });
 
-test('keyboard path reaches demo and filters records', async ({ page }) => {
+test('@claim:demo-search browser demo filters and restores all six sample records', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('link', { name: 'Try it with sample data' }).press('Enter');
   await expect(page).toHaveURL(/\?demo=1$/);
   await expect(page.getByRole('status')).toContainText('Demo — sample data, nothing is saved');
-  await page.getByLabel('Search records').fill('timeout');
+  await page.getByLabel('Search records').fill('ledger');
   await expect(page.locator('#records tr')).toHaveCount(1);
+  await page.getByLabel('Search records').fill('');
+  await expect(page.locator('#records tr')).toHaveCount(6);
+});
+
+test('@claim:demo-redaction-preview browser demo renders its named sample redaction markers', async ({ page }) => {
+  await page.goto('/?demo=1');
+  await expect(page.locator('#records')).toContainText('[REDACTED:EMAIL]');
+  await expect(page.locator('#records')).toContainText('[REDACTED:BEARER TOKEN]');
+});
+
+test('@claim:demo-conclusion browser demo conclusion matches the ledger and final payment records', async ({ page }) => {
+  await page.goto('/?demo=1');
+  await expect(page.locator('#records tr').filter({ hasText: 'ledger' })).toContainText('charge_id=ch_019 confirmed');
+  await expect(page.locator('#records tr').filter({ hasText: 'duplicate_charge=false' })).toHaveCount(1);
+  await expect(page.getByRole('heading', { name: 'What the records show' })).toBeVisible();
+  await expect(page.locator('.finding')).toContainText('The sample ledger record confirms one charge after the retry.');
+  await expect(page.locator('.finding')).toContainText('duplicate_charge=false');
 });
 
 test('fresh loads start keyboard navigation at the skip link', async ({ page }) => {
@@ -449,14 +484,28 @@ test('standalone 404 has the standard shell, metadata, and legal links', async (
   await expect(page.getByRole('link', { name: 'Terms' })).toHaveAttribute('href', '/terms');
 });
 
-test('demo has no serious or critical accessibility violations', async ({ page }) => {
+test('demo has no accessibility violations and its overflowing records are keyboard-scrollable', async ({ page }) => {
+  await page.setViewportSize({ width: 721, height: 844 });
   await page.goto('/demo');
+  const records = page.locator('.table-wrap');
+  const dimensions = await records.evaluate(element => ({ clientWidth: element.clientWidth, scrollWidth: element.scrollWidth }));
+  expect(dimensions.scrollWidth).toBeGreaterThan(dimensions.clientWidth);
+  await records.focus();
+  await expect(records).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(() => records.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
   await page.evaluate(axe.source);
   const violations = await page.evaluate(async () => {
     const results = await (window as unknown as { axe: typeof axe }).axe.run();
-    return results.violations.filter(issue => issue.impact === 'serious' || issue.impact === 'critical');
+    return results.violations;
   });
   expect(violations).toEqual([]);
+});
+
+test('reduced-motion mode disables smooth scrolling', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  expect(await page.locator('html').evaluate(element => getComputedStyle(element).scrollBehavior)).toBe('auto');
 });
 
 test('390px demo has no overflow and all primary controls meet touch size', async ({ page }) => {
