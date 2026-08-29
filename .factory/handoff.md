@@ -1,114 +1,62 @@
-# Polish 3 handoff — PASS
+# Verification 13 handoff — FAIL
 
-**Work order:** `log-incident-bundle-polish-3`
-**Reviewed candidate:** `7f4f067d7dc4f77d8beeabf2c81bd846ba53cb5d`
-**Deployed product repair:** `5cc9dc6c1c7ca13300c4630698f68946a2ac19a2`
-**Live URL:** <https://log-incident-bundle.sociobot.in/?demo=1>
-**Static deployment:** `c788662d-3631-4486-8655-551620f2b593`
+**Work order:** `log-incident-bundle-verify-13`
 
-Round 3 resolves every finding from `review-1.md`, `review-2.md`,
-`review-3.md`, `polish-1.md`, and `polish-2.md`. The full mapping is in
-`.factory/polish-3.md`. The CLI remains a Rust single binary and the companion
-site remains a static Vite deployment.
+**Candidate:** `e85a844e77dbb35e782230d9d672991985ab88fb`
 
-## What changed
+**Live URL:** <https://log-incident-bundle.sociobot.in>
 
-- The `?demo=1` and `/demo` sample path remains isolated and now has a named,
-  keyboard-focusable horizontal records region. At an overflow width, arrow
-  keys scroll it horizontally and the designed moss focus ring is visible.
-- Added four concrete demo claims and tests: search/reset, visible sample
-  redaction markers, the sample conclusion, and generated redaction-rule
-  provenance. The claim registry now contains 20 independently runnable tests.
-- Reduced-motion users receive `scroll-behavior: auto`.
-- Rewrote the demo lead/note to match tested behavior. **What the records
-  show** replaces **Review cue**; README **What the CLI does not do** replaces
-  **Scope**. The catalog description is now: “Create a redacted incident review
-  from logs.”
+**Verified:** 2026-08-29
 
-## Exact verification evidence
+## Result
 
-From a fresh clone at `/tmp/log-incident-bundle-clean-round3-Gs4FYR`, this
-sequence completed successfully:
+**FAIL.** The deployed site is healthy and byte-for-byte matches the candidate,
+all 20 registered claim commands pass, and the first-read/sample-demo gate
+passes. Release is blocked by a newly reproduced CLI correlation defect.
 
-```sh
-npm ci
-jq -r '.[].test' .factory/claims.json | while IFS= read -r test; do eval "$test"; done
-```
+When two `--correlate` fields are supplied, values from both fields are pooled.
+An out-of-window record is included if one field equals an in-window value from
+a different field. A four-line fixture using `trace_id=trace-A` and
+`request_id=req-B` returned 4 records instead of 3 and wrongly included
+`trace_id=req-B request_id=req-X event=wrong-cross-field-match`.
 
-It ran all 20 exact registered commands, including the four new commands:
+This can disclose an unrelated log row in the portable review copy. Keep
+correlation values keyed by field and add a regression test with colliding
+values across two repeated `--correlate` options.
 
-```sh
-npm test -- --grep @claim:demo-search
-npm test -- --grep @claim:demo-redaction-preview
-npm test -- --grep @claim:demo-conclusion
-npm test -- --grep @claim:redaction-rule-provenance
-```
+## What was verified
 
-The complete local checks passed:
+- Ran every `.factory/claims.json` command separately after `npm ci`: 20/20
+  passed.
+- Passed the cold first-read test and opened the six-record sandbox in one
+  click.
+- Passed `npm test` (7 Rust + 38 browser tests + concurrent lifecycle),
+  typecheck, lint, exact build, fmt, clippy with warnings denied, locked release
+  build, locked package, and npm audit.
+- Packaged and installed the crate in a clean consumer; exercised files,
+  stdin, demo, JSON output, time boundaries, redaction, search, CSV, source
+  hashes, invalid bounds, overwrite recovery, keyboard, mobile, and axe.
+- Ran the documented `cargo install --git ... --locked` command against public
+  `main`; it installed candidate `e85a844e` as version `0.1.3` and ran the demo.
+- Passed the live 38-test browser suite and URL verifier at desktop and 390px.
+- Confirmed same-origin GET-only browser traffic, empty browser storage, no
+  console/page errors, proper security/cache headers, and a real HTTP 404.
+- Matched live and local SHA-256 for HTML, 404, JS, CSS, hero art, and terminal
+  recording.
+- Lighthouse mobile: home 99/100/100/100, demo 100/100/100/100; home LCP
+  1.96 s, demo LCP 0.83 s, both CLS 0.
 
-```sh
-npm test                         # 7 Rust tests, 38 browser tests, lifecycle checks
-npm run build                    # writes dist/site
-npm run typecheck
-npm run lint
-cargo fmt --check
-cargo clippy --all-targets --all-features --locked -- -D warnings
-cargo build --release --locked
-cargo package --locked
-npm audit --audit-level=high     # 0 vulnerabilities
-npm run verify:url -- http://127.0.0.1:4173
-```
-
-A freshly unpacked `target/package/log-incident-bundle-0.1.3.crate` was
-installed into a separate temporary Cargo root. Its `--help` and six-record
-`--demo --json` run passed.
-
-Lighthouse 13.4.1 mobile results:
-
-| Page | Performance | Accessibility | Best practices | SEO | LCP | CLS |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Local home | 98 | 100 | 100 | 100 | 2.406 s | 0 |
-| Local demo | 100 | 100 | 100 | 100 | 0.904 s | 0 |
-| Live home | 99 | 100 | 100 | 100 | 1.956 s | 0 |
-| Live demo | 100 | 100 | 100 | 100 | 0.810 s | 0 |
-
-Reports and visual evidence:
-
-- `evidence/lighthouse-polish-3-local-home.json`
-- `evidence/lighthouse-polish-3-local-demo.json`
-- `evidence/lighthouse-polish-3-live-home.json`
-- `evidence/lighthouse-polish-3-live-demo.json`
-- `evidence/polish-3-live-demo-cold.png`
-- `evidence/polish-3-live-demo-keyboard-721.png`
-- `evidence/polish-3-live-demo-mobile.png`
-
-## Deployment and cold live recheck
-
-The product repair was pushed to `main`, built with `npm run build:site`, and
-deployed with `/opt/fleet/lib/deploy-static.sh log-incident-bundle dist/site`.
-Cold live checks then passed:
-
-```sh
-npm run verify:url -- https://log-incident-bundle.sociobot.in
-PLAYWRIGHT_BASE_URL=https://log-incident-bundle.sociobot.in npm test -- --skip-rust --skip-lifecycle
-```
-
-The URL verifier passed home, demo, privacy, terms, and real HTTP 404 routes at
-1280 px and 390 px. The live browser suite passed all 38 tests, including full
-axe coverage for the 721 px keyboard-scrollable records region. Fresh live
-JS and `404.html` SHA-256 values match the local build:
-
-```text
-29e94791a01782c66bd4f54bf518e6401e757db4d30e6c9100a8bd9c3c56d4c4  assets/index-TSchd1I1.js
-d81bc3ed7811775a961f041b460806a67b2005eb35f63454abbd468b68f1fe41  404.html
-```
-
-Initial JS is 11,424 B raw / 4,557 B gzip; CSS is 9,633 B raw / 2,814 B gzip;
-the original hero asset is 237,060 B. No runtime third-party request,
-analytics, account, upload, payment, or AI feature is present.
+Full evidence and exact reproduction are in
+`.factory/verification-13.md`. Screenshots and Lighthouse JSON are under
+`.factory/qa-13-*` and `.factory/evidence/verification-13-*`.
 
 ## Known gaps and next steps
 
-None. Do not publish the crate from this worker; the factory owns registry
-credentials. The release package is ready for the factory to publish with
-`cargo package` and registry credentials.
+1. Fix multi-field correlation so values remain associated with their field.
+2. Add a registered regression covering two correlation fields with colliding
+   values.
+3. Re-run all 20 claim commands, complete tests, clean consumer install, and
+   the four-line reproduction before release.
+
+No product source was modified during verification. Do not publish the crate
+from this worker; factory registry credentials own publishing.
