@@ -55,3 +55,5 @@ image deployment, then converted to WebP and kept below 300 KB. Prompt:
 > landscape composition, no words, no logos, no watermark.
 
 The OpenAI/factory image output is used as an original product asset.
+`public/incident-press-og.webp` is a 1200×630 centre-cropped derivative of the
+same original for social sharing metadata.

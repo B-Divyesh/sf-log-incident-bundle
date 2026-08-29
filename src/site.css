@@ -43,6 +43,14 @@ button,
   padding: 9px 14px;
   cursor: pointer;
 }
+.top a,
+.demo-banner button,
+.demo-banner a,
+footer a {
+  align-items: center;
+  display: inline-flex;
+  min-height: 44px;
+}
 .button {
   display: inline-flex;
   align-items: center;
@@ -135,9 +143,6 @@ h1 {
   max-width: 10ch;
   margin: 0.08em 0 0.22em;
   letter-spacing: -0.055em;
-}
-h1:focus {
-  outline: none;
 }
 .lede {
   font-size: clamp(1.18rem, 2.2vw, 1.5rem);
@@ -310,11 +315,17 @@ h2 {
   align-items: center;
 }
 .demo-banner button {
-  min-height: auto;
-  padding: 3px 7px;
+  min-height: 44px;
+  padding: 8px 10px;
   background: white;
   color: var(--ink);
   border: 1px solid var(--ink);
+}
+.license-notice {
+  border-left: 6px solid var(--warning);
+  margin: 20px 0 0;
+  padding: 10px 14px;
+  background: #fff0b5;
 }
 .demo-main {
   padding: 48px 0 72px;

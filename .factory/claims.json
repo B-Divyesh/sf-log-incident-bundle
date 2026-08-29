@@ -3,8 +3,8 @@
     "id": "portable-html",
     "claim": "Writes one self-contained HTML file.",
     "where": "landing facts, README",
-    "test": "cargo test output_contains_self_contained_search",
-    "sandbox": "shipped sample data; assert generated artifact includes search and CSV controls"
+    "test": "npm test -- --grep @claim:portable-html",
+    "sandbox": "generated CLI artifact opened from a file URL; assert rows, search, CSV, provenance, valid language, no errors, and no network"
   },
   {
     "id": "default-redaction",

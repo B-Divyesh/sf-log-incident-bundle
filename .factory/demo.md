@@ -3,9 +3,9 @@
 Open `/demo` or visit `https://log-incident-bundle.sociobot.in/demo`.
 
 The browser demo shows six redacted records from a checkout timeout. It uses
-only in-memory sample records and stores an optional marker under
-`demo:log-incident-bundle:active`. **Reset demo** removes that marker. It never
-reads or writes production data.
+only in-memory sample records and does not read or write browser storage.
+**Reset demo** restores the original in-memory sample. It never reads or writes
+production data.
 
 For the real CLI demo, run:
 
