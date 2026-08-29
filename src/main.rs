@@ -6,9 +6,10 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeSet,
-    fs,
-    io::{self, Read},
-    path::PathBuf,
+    fs::{self, OpenOptions},
+    io::{self, Read, Write},
+    path::{Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 /// Build a bounded, redacted, searchable HTML incident bundle locally.
@@ -87,6 +88,7 @@ fn main() -> Result<()> {
     if cli.demo {
         return run_demo(cli.json);
     }
+    validate_output_path(&cli.output, &cli.files, cli.redact_file.as_deref())?;
     let (contents, sources) = read_sources(&cli.files)?;
     let records = parse_records(&contents);
     let rules = redaction_rules(cli.redact_file.as_deref())?;
@@ -114,8 +116,7 @@ fn main() -> Result<()> {
         records: redacted,
     };
     let html = render_html(&bundle)?;
-    fs::write(&cli.output, html)
-        .with_context(|| format!("could not write {}", cli.output.display()))?;
+    write_new_output(&cli.output, html.as_bytes())?;
     if cli.json {
         println!(
             "{}",
@@ -134,7 +135,7 @@ fn main() -> Result<()> {
 
 fn run_demo(json: bool) -> Result<()> {
     let sample = include_str!("../examples/payment-api.log");
-    let output = std::env::temp_dir().join("log-incident-bundle-demo.html");
+    let output = create_demo_directory()?.join("review.html");
     let rules = redaction_rules(None)?;
     let records = bound_and_correlate(
         parse_records(&[("payment-api.log".into(), sample.into())]),
@@ -163,7 +164,7 @@ fn run_demo(json: bool) -> Result<()> {
         sources: vec![source],
         records: redacted,
     };
-    fs::write(&output, render_html(&bundle)?)?;
+    write_new_output(&output, render_html(&bundle)?.as_bytes())?;
     if json {
         println!(
             "{}",
@@ -173,6 +174,114 @@ fn run_demo(json: bool) -> Result<()> {
         println!("Demo bundle written to {}", output.display());
     }
     Ok(())
+}
+
+fn validate_output_path(
+    output: &Path,
+    files: &[PathBuf],
+    redact_file: Option<&Path>,
+) -> Result<()> {
+    let output_resolved = resolve_destination(output)?;
+    let output_metadata = fs::metadata(output).ok();
+    for input in files.iter().map(PathBuf::as_path).chain(redact_file) {
+        let input_resolved = fs::canonicalize(input)
+            .with_context(|| format!("could not resolve input {}", input.display()))?;
+        let same_identity = output_metadata
+            .as_ref()
+            .zip(fs::metadata(input).ok().as_ref())
+            .is_some_and(|(output_meta, input_meta)| same_file(output_meta, input_meta));
+        anyhow::ensure!(
+            output_resolved != input_resolved && !same_identity,
+            "refusing to write {} because it resolves to input {}; choose a new --output path",
+            output.display(),
+            input.display()
+        );
+    }
+    anyhow::ensure!(
+        fs::symlink_metadata(output).is_err(),
+        "refusing to overwrite existing output {}; choose a new --output path",
+        output.display()
+    );
+    Ok(())
+}
+
+fn resolve_destination(path: &Path) -> Result<PathBuf> {
+    if let Ok(resolved) = fs::canonicalize(path) {
+        return Ok(resolved);
+    }
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .context("could not resolve the current directory")?
+            .join(path)
+    };
+    let parent = absolute
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("output path must name a file"))?;
+    let name = absolute
+        .file_name()
+        .ok_or_else(|| anyhow::anyhow!("output path must name a file"))?;
+    Ok(fs::canonicalize(parent)
+        .with_context(|| format!("could not resolve output directory {}", parent.display()))?
+        .join(name))
+}
+
+#[cfg(unix)]
+fn same_file(left: &fs::Metadata, right: &fs::Metadata) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    left.dev() == right.dev() && left.ino() == right.ino()
+}
+
+#[cfg(not(unix))]
+fn same_file(_left: &fs::Metadata, _right: &fs::Metadata) -> bool {
+    false
+}
+
+fn write_new_output(path: &Path, contents: &[u8]) -> Result<()> {
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .with_context(|| {
+            format!(
+                "could not create {}; output files are never overwritten",
+                path.display()
+            )
+        })?;
+    file.write_all(contents)
+        .with_context(|| format!("could not write {}", path.display()))?;
+    file.sync_all()
+        .with_context(|| format!("could not finish writing {}", path.display()))?;
+    Ok(())
+}
+
+fn create_demo_directory() -> Result<PathBuf> {
+    let base = std::env::temp_dir();
+    for attempt in 0..128_u32 {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let directory = base.join(format!(
+            "log-incident-bundle-demo-{}-{nanos:x}-{attempt:x}",
+            std::process::id()
+        ));
+        let mut builder = fs::DirBuilder::new();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::DirBuilderExt;
+            builder.mode(0o700);
+        }
+        match builder.create(&directory) {
+            Ok(()) => return Ok(directory),
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(error) => {
+                return Err(error).context("could not create a temporary demo directory");
+            }
+        }
+    }
+    anyhow::bail!("could not create a unique temporary demo directory")
 }
 
 type SourceContents = Vec<(String, String)>;
@@ -320,7 +429,7 @@ fn field_value(line: &str, field: &str) -> Option<String> {
 }
 
 fn redaction_rules(path: Option<&std::path::Path>) -> Result<Vec<RedactionRule>> {
-    let secret_field = r"(?:password|passwd|secret|api[_-]?key|access[_-]?token|token)";
+    let secret_field = r"[A-Z0-9_-]*(?:password|passwd|pwd|secret|api[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|private[_-]?key|authorization|credentials?|session|cookie|token)[A-Z0-9_-]*";
     let mut rules = vec![
         RedactionRule {
             label: "email".into(),
@@ -402,7 +511,7 @@ fn render_html(bundle: &Bundle<'_>) -> Result<String> {
     let data = serde_json::to_string(bundle)?.replace('<', "\\u003c");
     let nonce = &hash(data.as_bytes())[..24];
     Ok(format!(
-        r#"<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-{nonce}'; base-uri 'none'; form-action 'none'"><title>{}</title><style>*{{box-sizing:border-box}}body{{margin:0;background:#f6f0df;color:#17211f;font:16px Georgia,serif}}main{{max-width:1100px;margin:auto;padding:32px 20px;min-width:0}}header{{border-bottom:4px solid #17211f;padding-bottom:20px}}h1{{font-size:clamp(2rem,5vw,4rem);margin:.2em 0}}section{{min-width:0}}.stamp{{font:700 13px ui-monospace,monospace;letter-spacing:.08em;color:#b7432e}}.warning{{background:#fff1bd;border-left:6px solid #835400;padding:12px 16px}}.controls{{display:flex;gap:12px;flex-wrap:wrap;margin:24px 0}}input,button{{min-height:44px;border:2px solid #17211f;padding:8px 12px;font:inherit}}button{{background:#b7432e;color:#fff;font-weight:bold;cursor:pointer}}button:focus,input:focus{{outline:3px solid #29654c;outline-offset:3px}}table{{width:100%;border-collapse:collapse;font:13px ui-monospace,monospace;background:#132329;color:#f7f2e5}}th,td{{padding:10px;text-align:left;vertical-align:top;border-bottom:1px solid #42605e;overflow-wrap:anywhere}}th{{color:#f6d083}}.meta{{font:14px ui-monospace,monospace;overflow-wrap:anywhere}}#empty{{margin:16px 0;padding:12px 16px;background:#fff1bd;border-left:6px solid #835400}}#sources{{padding-left:24px}}#sources li{{max-width:100%;overflow-wrap:anywhere}}#sources code{{word-break:break-all}}@media(max-width:640px){{main{{padding:20px 12px}}th:nth-child(2),td:nth-child(2){{display:none}}}}</style></head><body><main><header><p class="stamp">LOCAL INCIDENT ARTIFACT · REVIEW COPY</p><h1>{}</h1><p>{}</p></header><p class="warning">{}</p><section aria-labelledby="evidence"><div class="controls"><label>Search evidence <input id="search" type="search" autofocus></label><button id="csv">Download CSV</button></div><h2 id="evidence">Evidence (<span id="count"></span> records)</h2><p id="empty" role="status" hidden></p><table><thead><tr><th>Time</th><th>Source</th><th>Line</th><th>Record</th></tr></thead><tbody id="rows"></tbody></table></section><section><h2>Provenance</h2><p class="meta">Redaction rules: {}</p><ul id="sources"></ul></section></main><script id="bundle-data" type="application/json">{data}</script><script nonce="{nonce}">const B=JSON.parse(document.querySelector('#bundle-data').textContent);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}}[c]));const search=document.querySelector('#search'),csv=document.querySelector('#csv'),rows=document.querySelector('#rows'),count=document.querySelector('#count'),empty=document.querySelector('#empty');function show(){{const q=search.value.toLowerCase(),a=B.records.filter(r=>Object.values(r).join(' ').toLowerCase().includes(q));count.textContent=a.length;rows.innerHTML=a.map(r=>`<tr><td>${{esc(r.timestamp||'No timestamp')}}</td><td>${{esc(r.source)}}</td><td>${{r.line}}</td><td>${{esc(r.text)}}</td></tr>`).join('');empty.hidden=a.length>0;if(!a.length)empty.textContent=B.records.length?'No evidence matches this search. Clear the search to see every record.':'No records matched the selected time bounds. Widen or remove --from or --to, then generate a new review.'}}search.addEventListener('input',show);csv.addEventListener('click',()=>{{const line=r=>[r.timestamp||'',r.source,r.line,r.text].map(x=>'"'+String(x).replaceAll('"','""')+'"').join(',');const blob=new Blob([['timestamp,source,line,text',...B.records.map(line)].join('\n')],{{type:'text/csv'}});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='incident-records.csv';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0)}});document.querySelector('#sources').innerHTML=B.sources.map(s=>`<li><code>${{esc(s.name)}}</code> — ${{s.lines}} lines — SHA-256 <code>${{s.sha256}}</code></li>`).join('');show();</script></body></html>"#,
+        r#"<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-{nonce}'; base-uri 'none'; form-action 'none'"><title>{}</title><style>*{{box-sizing:border-box}}body{{margin:0;background:#f6f0df;color:#17211f;font:16px Georgia,serif}}main{{max-width:1100px;margin:auto;padding:32px 20px;min-width:0}}header{{border-bottom:4px solid #17211f;padding-bottom:20px}}h1{{font-size:clamp(2rem,5vw,4rem);margin:.2em 0}}section{{min-width:0}}.stamp{{font:700 13px ui-monospace,monospace;letter-spacing:.08em;color:#b7432e}}.warning{{background:#fff1bd;border-left:6px solid #835400;padding:12px 16px}}.controls{{display:flex;gap:12px;flex-wrap:wrap;margin:24px 0}}input,button{{min-height:44px;border:2px solid #17211f;padding:8px 12px;font:inherit}}button{{background:#b7432e;color:#fff;font-weight:bold;cursor:pointer}}button:focus,input:focus{{outline:3px solid #29654c;outline-offset:3px}}table{{width:100%;border-collapse:collapse;font:13px ui-monospace,monospace;background:#132329;color:#f7f2e5}}th,td{{padding:10px;text-align:left;vertical-align:top;border-bottom:1px solid #42605e;overflow-wrap:anywhere}}th{{color:#f6d083}}.meta{{font:14px ui-monospace,monospace;overflow-wrap:anywhere}}#empty{{margin:16px 0;padding:12px 16px;background:#fff1bd;border-left:6px solid #835400}}#sources{{padding-left:24px}}#sources li{{max-width:100%;overflow-wrap:anywhere}}#sources code{{word-break:break-all}}@media(max-width:640px){{main{{padding:20px 12px}}th:nth-child(2),td:nth-child(2){{display:none}}}}</style></head><body><main><header><p class="stamp">LOCAL INCIDENT ARTIFACT · REVIEW COPY</p><h1>{}</h1><p>{}</p></header><p class="warning">{}</p><section aria-labelledby="evidence"><div class="controls"><label>Search evidence <input id="search" type="search" autofocus></label><button id="csv">Download CSV</button></div><h2 id="evidence">Evidence (<span id="count"></span> records)</h2><p id="empty" role="status" hidden></p><table><thead><tr><th>Time</th><th>Source</th><th>Line</th><th>Record</th></tr></thead><tbody id="rows"></tbody></table></section><section><h2>Provenance</h2><p class="meta">Redaction rules: {}</p><ul id="sources"></ul></section></main><script id="bundle-data" type="application/json">{data}</script><script nonce="{nonce}">const B=JSON.parse(document.querySelector('#bundle-data').textContent);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}}[c]));const search=document.querySelector('#search'),csv=document.querySelector('#csv'),rows=document.querySelector('#rows'),count=document.querySelector('#count'),empty=document.querySelector('#empty');function show(){{const q=search.value.toLowerCase(),a=B.records.filter(r=>Object.values(r).join(' ').toLowerCase().includes(q));count.textContent=a.length;rows.innerHTML=a.map(r=>`<tr><td>${{esc(r.timestamp||'No timestamp')}}</td><td>${{esc(r.source)}}</td><td>${{r.line}}</td><td>${{esc(r.text)}}</td></tr>`).join('');empty.hidden=a.length>0;if(!a.length)empty.textContent=B.records.length?'No evidence matches this search. Clear the search to see every record.':'No records matched the selected time bounds. Widen or remove --from or --to, then generate a new review.'}}search.addEventListener('input',show);csv.addEventListener('click',()=>{{const safe=x=>{{const s=String(x??'');return /^[=+\-@\t\r]/.test(s)?"'"+s:s}},line=r=>[r.timestamp||'',r.source,r.line,r.text].map(x=>'"'+safe(x).replaceAll('"','""')+'"').join(',');const blob=new Blob([['timestamp,source,line,text',...B.records.map(line)].join('\n')],{{type:'text/csv'}});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='incident-records.csv';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0)}});document.querySelector('#sources').innerHTML=B.sources.map(s=>`<li><code>${{esc(s.name)}}</code> — ${{s.lines}} lines — SHA-256 <code>${{s.sha256}}</code></li>`).join('');show();</script></body></html>"#,
         html_escape(bundle.title),
         html_escape(bundle.title),
         html_escape(bundle.question),
@@ -425,7 +534,7 @@ mod tests {
     #[test]
     fn redacts_default_secrets() {
         let rules = redaction_rules(None).unwrap();
-        let input = "email=dev@example.com authorization=Bearer short123 token=\"two word secret\" password=\"correct horse battery staple\" api_key=abc access_token=xy \"apiKey\":\"json-key-value\" \"password\":\"json-password-value\" \"access_token\":\"json-token-value\" permanent=AKIA1234567890ABCDEF temporary=ASIA1234567890ABCDEF";
+        let input = "email=dev@example.com authorization=Bearer short123 token=\"two word secret\" password=\"correct horse battery staple\" api_key=abc access_token=xy client_secret=clientSecretValue refresh_token=refreshTokenValue id_token=idTokenValue private_key=privateKeyValue authorization=\"Basic basicCredentialValue\" session=sessionValue cookie=cookieValue oauth_client_secret=oauthSecretValue password_hash=passwordHashValue \"apiKey\":\"json-key-value\" \"password\":\"json-password-value\" \"access_token\":\"json-token-value\" \"refreshToken\":\"jsonRefreshValue\" permanent=AKIA1234567890ABCDEF temporary=ASIA1234567890ABCDEF";
         let output = redact(input, &rules);
         for secret in [
             "dev@example.com",
@@ -434,10 +543,19 @@ mod tests {
             "correct horse battery staple",
             "abc",
             "xy",
+            "clientSecretValue",
+            "refreshTokenValue",
+            "idTokenValue",
+            "privateKeyValue",
+            "basicCredentialValue",
+            "sessionValue",
+            "cookieValue",
+            "oauthSecretValue",
+            "passwordHashValue",
             "json-key-value",
             "json-password-value",
             "json-token-value",
-            "plain-secret-value",
+            "jsonRefreshValue",
             "AKIA1234567890ABCDEF",
             "ASIA1234567890ABCDEF",
         ] {

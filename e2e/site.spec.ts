@@ -1,13 +1,22 @@
 import { expect, test } from '@playwright/test';
 import axe from 'axe-core';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { link, lstat, mkdtemp, readFile, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const root = process.cwd();
 const siteOrigin = new URL(process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4173').origin;
+
+function contrastRatio(first: string, second: string) {
+  const luminance = (color: string) => {
+    const channels = color.match(/[\d.]+/g)!.slice(0, 3).map(Number).map(value => value / 255).map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  };
+  const [lighter, darker] = [luminance(first), luminance(second)].sort((a, b) => b - a);
+  return (lighter + 0.05) / (darker + 0.05);
+}
 
 async function makeBundle(input: string, options: string[] = []) {
   const directory = await mkdtemp(join(tmpdir(), 'log-incident-bundle-e2e-'));
@@ -93,21 +102,62 @@ test('@claim:portable-html generated bundle renders, searches, exports, and show
   expect(csv).toContain('duplicate_charge=false');
   expect(errors).toEqual([]);
   expect(requests.filter(url => !url.startsWith('file:'))).toEqual([]);
+
+  const formulas = ['=1+1', '+1+1', '-1+1', '@SUM(A1)'];
+  const adversarial = await makeBundle(formulas.join('\n'));
+  await page.goto(adversarial.url);
+  const adversarialDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download CSV' }).click();
+  const formulaCsv = await readFile((await (await adversarialDownload).path())!, 'utf8');
+  for (const formula of formulas) expect(formulaCsv).toContain(`,"'${formula}"`);
 });
 
 test('@claim:default-redaction generated bundles redact every named default category', async ({ page }) => {
-  const input = '2026-08-22T14:01:01Z credential=ASIA1234567890ABCDEF authorization=Bearer short123 token="two word secret" password="correct horse battery staple" api_key=abc access_token=xy {"apiKey":"json-key-value","password":"json-password-value","access_token":"json-token-value","email":"dev@example.com","aws":"AKIA1234567890ABCDEF"}';
+  const input = '2026-08-22T14:01:01Z credential=ASIA1234567890ABCDEF authorization=Bearer short123 token="two word secret" password="correct horse battery staple" api_key=abc access_token=xy client_secret=clientSecretValue refresh_token=refreshTokenValue id_token=idTokenValue private_key=privateKeyValue authorization="Basic basicCredentialValue" session=sessionValue cookie=cookieValue oauth_client_secret=oauthSecretValue password_hash=passwordHashValue {"apiKey":"json-key-value","password":"json-password-value","access_token":"json-token-value","refreshToken":"jsonRefreshValue","email":"dev@example.com","aws":"AKIA1234567890ABCDEF"}';
   const bundle = await makeBundle(input);
   await page.goto(bundle.url);
   const body = await page.locator('body').innerText();
   const html = await readFile(bundle.output, 'utf8');
-  for (const secret of ['ASIA1234567890ABCDEF', 'short123', 'two word secret', 'correct horse battery staple', 'abc', 'xy', 'json-key-value', 'json-password-value', 'json-token-value', 'dev@example.com', 'AKIA1234567890ABCDEF']) {
+  for (const secret of ['ASIA1234567890ABCDEF', 'short123', 'two word secret', 'correct horse battery staple', 'abc', 'xy', 'clientSecretValue', 'refreshTokenValue', 'idTokenValue', 'privateKeyValue', 'basicCredentialValue', 'sessionValue', 'cookieValue', 'oauthSecretValue', 'passwordHashValue', 'json-key-value', 'json-password-value', 'json-token-value', 'jsonRefreshValue', 'dev@example.com', 'AKIA1234567890ABCDEF']) {
     expect(body).not.toContain(secret);
     expect(html).not.toContain(secret);
   }
   await expect(page.locator('#rows')).toContainText('[REDACTED:AWS ACCESS KEY ID]');
   await expect(page.locator('#rows')).toContainText('token=[REDACTED:SECRET FIELD]');
   await expect(page.locator('#rows tr')).toHaveCount(1);
+});
+
+test('@claim:output-safety CLI refuses output aliases and existing files without changing them', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'log-incident-bundle-output-safety-'));
+  const source = join(directory, 'incident.log');
+  const original = '2026-08-22T14:01:01Z trace_id=safe status=ok\n';
+  await writeFile(source, original);
+
+  const direct = spawnSync('cargo', ['run', '--quiet', '--', source, '--output', source, '--json'], { cwd: root, encoding: 'utf8' });
+  expect(direct.status).not.toBe(0);
+  expect(direct.stderr).toContain('resolves to input');
+  expect(await readFile(source, 'utf8')).toBe(original);
+
+  const hardAlias = join(directory, 'hard-link.log');
+  await link(source, hardAlias);
+  const hardLinked = spawnSync('cargo', ['run', '--quiet', '--', source, '--output', hardAlias, '--json'], { cwd: root, encoding: 'utf8' });
+  expect(hardLinked.status).not.toBe(0);
+  expect(hardLinked.stderr).toContain('resolves to input');
+  expect(await readFile(source, 'utf8')).toBe(original);
+
+  const symbolicAlias = join(directory, 'symbolic-link.log');
+  await symlink(source, symbolicAlias);
+  const symbolic = spawnSync('cargo', ['run', '--quiet', '--', source, '--output', symbolicAlias, '--json'], { cwd: root, encoding: 'utf8' });
+  expect(symbolic.status).not.toBe(0);
+  expect(symbolic.stderr).toContain('resolves to input');
+  expect(await readFile(source, 'utf8')).toBe(original);
+
+  const existing = join(directory, 'existing.html');
+  await writeFile(existing, 'keep this output');
+  const overwrite = spawnSync('cargo', ['run', '--quiet', '--', source, '--output', existing, '--json'], { cwd: root, encoding: 'utf8' });
+  expect(overwrite.status).not.toBe(0);
+  expect(overwrite.stderr).toContain('refusing to overwrite existing output');
+  expect(await readFile(existing, 'utf8')).toBe('keep this output');
 });
 
 test('@claim:cli-inputs CLI reads a chosen file or standard input', async () => {
@@ -187,9 +237,21 @@ test('CLI rejects invalid and inverted time bounds before creating output', asyn
 });
 
 test('@claim:demo-cli produces the advertised six-record correlated review', async ({ page }) => {
-  const result = execFileSync('cargo', ['run', '--quiet', '--', '--demo', '--json'], { cwd: root, encoding: 'utf8' });
+  const temporaryRoot = await mkdtemp(join(tmpdir(), 'log-incident-bundle-demo-safety-'));
+  const victim = join(temporaryRoot, 'victim.html');
+  const legacySharedPath = join(temporaryRoot, 'log-incident-bundle-demo.html');
+  await writeFile(victim, 'do not overwrite');
+  await symlink(victim, legacySharedPath);
+  const environment = { ...process.env, TMPDIR: temporaryRoot };
+  const result = execFileSync('cargo', ['run', '--quiet', '--', '--demo', '--json'], { cwd: root, encoding: 'utf8', env: environment });
+  const secondResult = execFileSync('cargo', ['run', '--quiet', '--', '--demo', '--json'], { cwd: root, encoding: 'utf8', env: environment });
   const demo = JSON.parse(result) as { output: string; records: number };
+  const secondDemo = JSON.parse(secondResult) as { output: string; records: number };
   expect(demo.records).toBe(6);
+  expect(demo.output).not.toBe(legacySharedPath);
+  expect(secondDemo.output).not.toBe(demo.output);
+  expect(await readFile(victim, 'utf8')).toBe('do not overwrite');
+  expect((await lstat(dirname(demo.output))).mode & 0o777).toBe(0o700);
   await page.goto(pathToFileURL(demo.output).href);
   await expect(page.locator('#rows tr')).toHaveCount(6);
   await expect(page.locator('#rows')).not.toContainText('healthcheck=ok');
@@ -317,6 +379,27 @@ test('390px demo has no overflow and all primary controls meet touch size', asyn
       expect(box!.height).toBeGreaterThanOrEqual(44);
     }
   }
+});
+
+test('390px landing links and skip link meet touch size', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  const sample = await page.getByRole('link', { name: 'Open the working sample review →' }).boundingBox();
+  expect(sample!.height).toBeGreaterThanOrEqual(44);
+  await page.keyboard.press('Tab');
+  const skip = await page.getByRole('link', { name: 'Skip to content' }).boundingBox();
+  expect(skip!.height).toBeGreaterThanOrEqual(44);
+});
+
+test('demo banner keyboard focus has at least 3:1 adjacent contrast', async ({ page }) => {
+  await page.goto('/demo');
+  const reset = page.getByRole('button', { name: 'Reset demo' });
+  await reset.focus();
+  const colors = await reset.evaluate(element => ({
+    outline: getComputedStyle(element).outlineColor,
+    adjacent: getComputedStyle(element.closest('.demo-banner')!).backgroundColor
+  }));
+  expect(contrastRatio(colors.outline, colors.adjacent)).toBeGreaterThanOrEqual(3);
 });
 
 test('390px generated CLI artifact has no page-level overflow', async ({ page }) => {

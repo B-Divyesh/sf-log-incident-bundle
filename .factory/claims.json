@@ -4,14 +4,21 @@
     "claim": "The CLI writes one self-contained HTML review copy with search, CSV download, and source-hash provenance.",
     "where": "landing facts, landing preview, README",
     "test": "npm test -- --grep @claim:portable-html",
-    "sandbox": "generate a bounded, correlated artifact from shipped sample data; open it from file: and exercise rows, search, CSV, and source hash"
+    "sandbox": "generate a bounded, correlated artifact from shipped sample data; open it from file: and exercise rows, search, source hash, normal CSV, and formula-leading CSV cells"
   },
   {
     "id": "default-redaction",
-    "claim": "Default rules replace email addresses, bearer tokens, common secret fields including token, and AKIA or ASIA AWS access-key IDs.",
+    "claim": "Default rules replace email addresses, bearer tokens, common secret fields including OAuth tokens, authorization, credentials, sessions, cookies, and private keys, plus AKIA or ASIA AWS access-key IDs.",
     "where": "README redaction section",
     "test": "npm test -- --grep @claim:default-redaction",
-    "sandbox": "generate a browser-visible artifact from the verifier's exact stdin record plus structured JSON fields; assert every raw secret is absent from both the file and rendered view"
+    "sandbox": "generate a browser-visible artifact containing client_secret, refresh_token, id_token, private_key, Basic authorization, session, cookie, prefix/suffix variants, and structured JSON fields; assert every raw secret is absent from the file and rendered view"
+  },
+  {
+    "id": "output-safety",
+    "claim": "The CLI never overwrites an existing output file and rejects output paths that resolve to an input file.",
+    "where": "README make-a-review section",
+    "test": "npm test -- --grep @claim:output-safety",
+    "sandbox": "use direct, hard-link, and symbolic-link aliases plus an unrelated existing output; assert nonzero exits and byte-identical source and output contents"
   },
   {
     "id": "cli-inputs",
@@ -64,10 +71,10 @@
   },
   {
     "id": "demo-cli",
-    "claim": "The CLI demo creates the six-record correlated checkout review.",
+    "claim": "The CLI demo creates the six-record correlated checkout review in a private, unique temporary directory without reusing files or symlinks.",
     "where": "landing preview, README demo section, /demo",
     "test": "npm test -- --grep @claim:demo-cli",
-    "sandbox": "run --demo from a clean checkout, parse its JSON result, and open the generated artifact"
+    "sandbox": "place a hostile symlink at the legacy shared path; run --demo twice with an isolated temporary root; assert unique private directories, unchanged victim bytes, and a working generated artifact"
   },
   {
     "id": "finite-review",

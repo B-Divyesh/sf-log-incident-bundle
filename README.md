@@ -41,6 +41,10 @@ log-incident-bundle api.log worker.log \
 Open `checkout-review.html` in a browser. The recipient can search records and
 download a CSV without needing the source logs.
 
+The CLI never overwrites an existing output file. It also rejects an output
+path that resolves to an input file. Choose a new `--output` path if either
+check fails.
+
 Use standard input when a file is not needed:
 
 ```sh
@@ -54,9 +58,10 @@ values for that field inside the window, then adds other matching records.
 
 ## Redaction
 
-The default rules replace email addresses, bearer tokens, common secret fields
-including `token`, and `AKIA` or `ASIA` AWS access-key IDs. Add reviewable local
-rules with a plain text file:
+The default rules replace email addresses, bearer tokens, and common secret
+fields. This includes OAuth tokens, authorization, credentials, sessions,
+cookies, private keys, and AWS access-key IDs beginning with `AKIA` or `ASIA`.
+Add reviewable local rules with a plain text file:
 
 ```text
 # rules.txt
@@ -79,7 +84,8 @@ Run the shipped example without providing a file:
 log-incident-bundle --demo
 ```
 
-It prints the path to a temporary review copy built from
+It creates a private, unique temporary directory and prints the path to a
+review copy built from
 [`examples/payment-api.log`](examples/payment-api.log). The browser version is
 at `/?demo=1` or `/demo`. It uses six fixed sample records in memory and writes
 no demo data to browser storage.

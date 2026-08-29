@@ -36,9 +36,10 @@ gaps and 24/40/64px section intervals. Evidence columns use tabular numerals.
 
 Panels have square corners, heavy offset rules, and a restrained dot texture.
 Buttons look like stamped labels. Redaction is shown as a clearly marked block,
-never hidden behind a soft blur. Focus uses a 3px ink outline offset from the
-element. The signature motion is a short (180ms) upward settling of the
-evidence sheet when the demo starts; reduced motion makes it immediate.
+never hidden behind a soft blur. Focus uses a 3px moss outline on paper and a
+3px pale-paper outline on the red demo banner, always offset from the element.
+The signature motion is a short (180ms) upward settling of the evidence sheet
+when the demo starts; reduced motion makes it immediate.
 
 ## Original asset
 

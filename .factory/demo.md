@@ -14,5 +14,6 @@ For the real CLI demo, run:
 cargo run -- --demo
 ```
 
-It creates a temporary self-contained HTML file from
-`examples/payment-api.log` and prints its path.
+It securely creates a private, unique temporary directory, writes a
+self-contained `review.html` from `examples/payment-api.log`, and prints its
+path. Existing files and symlinks are never reused.

@@ -3,7 +3,7 @@
 body { margin: 0; background: radial-gradient(#d8ceb2 1px, transparent 1px) 0 0 / 8px 8px, #f6f0df; font-size: 17px; line-height: 1.55; }
 a { color: inherit; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 :focus-visible { outline: 3px solid #29654c; outline-offset: 4px; }
-.skip { position: absolute; top: -50px; left: 10px; z-index: 2; padding: 8px; background: #17211f; color: #fff; }
+.skip { position: absolute; top: -50px; left: 10px; z-index: 2; display: inline-flex; min-height: 44px; align-items: center; padding: 8px; background: #17211f; color: #fff; }
 .skip:focus { top: 10px; }
 .top, main, footer { width: min(1160px, calc(100% - 40px)); margin: auto; }
 .top { display: flex; min-height: 84px; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 3px solid #17211f; }
