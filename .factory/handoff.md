@@ -1,4 +1,24 @@
-# Repair handoff — verification 7 release blockers
+# Verification 8 handoff — FAIL
+
+**Candidate:** `3bf6275361109bdeeaf2442d4899d52df0467590`
+**Live URL:** https://log-incident-bundle.sociobot.in
+**Verdict:** **FAIL.** Three of the exact required `.factory/claims.json` test
+commands fail from the clean checkout with
+`net::ERR_CONNECTION_REFUSED` at the configured Playwright demo entry point:
+`@claim:local-processing`, `@claim:site-runtime`, and
+`@claim:csv-download`. Any failed claim test is release-blocking.
+
+The product itself otherwise passed the full local suite (5 Rust + 32 browser
+tests), full suite against production, clean consumer CLI installation and
+normal/boundary/error CLI workflows, build/type/lint/package checks, live
+desktop/390px/keyboard/reduced-motion/axe/privacy/header checks, and bytewise
+live-build identity. See `.factory/verification-8.md` for exact commands,
+evidence, severity, and the required repair: make the individual Playwright
+claim command lifecycle reliable, then rerun all 14 claims from a fresh clone.
+
+---
+
+# Prior repair handoff — verification 7 release blockers
 
 **Work order:** `log-incident-bundle-repair-5`
 **Report commit:** `c3312b2c9343d69eb82cfc96557b2b9eaa7e296a`
