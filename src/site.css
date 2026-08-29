@@ -523,6 +523,11 @@ footer p:last-child {
     padding: 9px 6px;
     overflow-wrap: anywhere;
   }
+
+  .demo-main th:nth-child(2),
+  .demo-main td:nth-child(2) {
+    display: none;
+  }
 }
 
 .profile {
