@@ -1,70 +1,82 @@
-# Handoff — Log Incident Bundle v0.1.0 repair
+# Handoff — Log Incident Bundle repair
 
-## Repair status
+## Status
 
-The verifier findings against candidate `9574bf674fe14f7838197925436a04b0b6b01fd7`
-are repaired. The CLI now emits valid self-contained HTML, serializes untrusted
-data safely, validates RFC 3339 bounds before writing, redacts quoted JSON
-secret fields, and makes `--demo` produce the documented six correlated
-records.
+Repaired the independent verifier findings against candidate
+`9574bf674fe14f7838197925436a04b0b6b01fd7`. This is still the same product:
+a Rust CLI and a static companion site. No infrastructure, DNS, billing, or
+deployment configuration outside this repository was changed.
 
-The static companion site now keeps its demo entirely in memory, clears a
-legacy demo marker, provides 44px navigation/demo targets at 390px, focuses the
-new page heading after in-app navigation, avoids duplicate returned-license
-checks, and gives an inactive-license notice. Static Web Apps routing explicitly
-rewrites known app routes and leaves unknown URLs for the real 404 response.
-Hashed assets and product images have immutable-cache route rules.
+## Repairs
 
-## Regression coverage
+- Fixed the generated HTML attributes and moved bundle data into a safely
+  serialized JSON script element. Every `<` becomes `\u003c`, so a log,
+  title, question, or source string cannot terminate the data script. Generated
+  artifacts now set a nonce-based restrictive CSP and still work from `file:`.
+- Added an actual browser regression over a CLI-generated artifact: six rows,
+  search, CSV download, source SHA-256 provenance, valid `lang`, no browser
+  errors, and no non-file network request are all asserted.
+- Default redaction now covers quoted JSON `apiKey`, `password`, and
+  `access_token` fields as well as the existing email, bearer token, and
+  AWS-style key rules. Both Rust and browser-visible regressions cover them.
+- `--from` and `--to` now require RFC 3339 values and reject inverted ranges
+  before an output file is written. `--demo` now applies the advertised time
+  window and `trace_id` correlation, yielding exactly six records.
+- Removed the demo marker write. Reset and exit clear the legacy scoped marker
+  if present, while demo state remains in memory and never reads a saved
+  license. Mobile controls now meet 44×44 px, SPA navigation focuses the new
+  heading, and a returned inactive license verifies once and shows a quiet
+  notice.
+- Updated Vite to 7.3.6, removed unused Vitest, added TypeScript type/lint
+  scripts, generated a 1200×630 social card from the existing original art,
+  and configured immutable cache headers for assets. Known application routes
+  have explicit rewrites so an unknown static route receives the configured
+  HTTP 404 response.
 
-- `@claim:portable-html` opens an actual CLI-generated `file://` artifact in
-  Chromium. It asserts `lang=en`, initial rows, search, CSV download,
-  provenance, no page/console errors, and no requests beyond the local file.
-- A second browser regression puts `</script>` payloads in title, question,
-  source name, and log text. It proves the values render as text and cannot
-  change the title or set a JavaScript marker.
-- Rust coverage checks quoted JSON `apiKey`, `password`, and `access_token`,
-  plus email, bearer token, and AWS-style key redaction; invalid and inverted
-  time bounds are rejected.
-- Browser checks cover demo reset/exit storage cleanup, heading focus after
-  route change, 390px 44px controls/no horizontal overflow, keyboard filtering,
-  CSV, console errors, and axe serious/critical issues.
-
-## Exact verification evidence
+## Exact local verification
 
 Run from a clean checkout:
 
 ```sh
 npm ci
+npm test                         # 4 Rust + 15 Playwright tests pass
+npm run typecheck
 npm run lint
-npm test
-npm run build
+npm run build                    # dist/site; JS 12.29 kB / 4.91 kB gzip, CSS 7.53 kB / 2.46 kB gzip
+npm audit --audit-level=high     # 0 vulnerabilities
+cargo fmt --check
+cargo clippy --all-targets --all-features -- -D warnings
 cargo build --release
-cargo package
+cargo package --allow-dirty      # package verification passes before commit
 ```
 
-Completed in this repair:
+All declared claim commands pass individually:
 
-- `npm ci` and `npm audit --audit-level=high`: **0 vulnerabilities**.
-- `npm run lint`: **pass** (`cargo fmt --check`, strict clippy, TypeScript).
-- `npm test`: **pass** — 5 Rust tests and 10 Playwright tests.
-- Every declared claim command: **pass**.
-- `npm run build`: **pass**. Initial JS is 12.49 kB / 4.94 kB gzip; CSS is
-  7.34 kB / 2.44 kB gzip.
-- `cargo build --release` and `cargo package --allow-dirty`: **pass**.
-- Fresh consumer install from `target/package/log-incident-bundle-0.1.0`:
-  `--version` and `--demo --json` passed; demo reports **6** records.
-- Manual invalid-bound check returned exit code **1** and did not create an
-  output file.
-- Local Chromium Lighthouse 13.4.1 at `/demo`: Performance **100**,
-  Accessibility **100**, Best Practices **100**, SEO **100**; LCP **972 ms**,
-  CLS **0**.
+```sh
+npm test -- --grep @claim:portable-html
+npm test -- --grep @claim:default-redaction
+npm test -- --grep @claim:local-processing
+npm test -- --grep @claim:csv-download
+npm test -- --grep @claim:demo-cli
+```
+
+The browser suite includes desktop, 390 px mobile, keyboard focus, generated
+artifact security, demo isolation, same-origin privacy, CSV, mocked returned
+license policy, console/page errors, and axe serious/critical checks. The
+artifact itself is the offline path: its regression opens the generated
+`file:` document without any server or external request. The site does not
+claim offline reload and is not a PWA, so no service-worker update flow applies.
+
+`cargo package --allow-dirty` was also installed into a fresh temporary
+consumer root. The installed binary reported version `0.1.0` and
+`--demo --json` produced the six-record artifact.
 
 ## Deploy and follow-up
 
-Push this repair commit to `main`; the work order keeps the static deployment
-class and deploys `dist/site`. Verify the live URL after deployment for the
-immutable asset headers, real unknown-route 404, and updated asset hash.
+Deploy class remains static. Push `main`; the factory deploys `dist/site` with
+the checked-in Static Web Apps policy. After deployment, verify `/`, `/demo`,
+`/privacy`, `/terms`, and a missing path; confirm hash identity, 404 status,
+immutable asset caching, browser/axe checks, and the generated CLI artifact.
 
-There are no known functional gaps. Redaction remains pattern-based by design;
-the CLI continues to warn recipients to review the final file before sharing.
+Known gap: live deployment evidence is not yet recorded in this commit; it
+must be checked once the factory has deployed the pushed repair.

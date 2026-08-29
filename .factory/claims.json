@@ -1,17 +1,17 @@
 [
   {
     "id": "portable-html",
-    "claim": "Writes one self-contained HTML file.",
+    "claim": "Writes one self-contained review copy with search, CSV download, and source-hash provenance.",
     "where": "landing facts, README",
     "test": "npm test -- --grep @claim:portable-html",
-    "sandbox": "generated CLI artifact opened from a file URL; assert rows, search, CSV, provenance, valid language, no errors, and no network"
+    "sandbox": "generate a bounded, correlated artifact from shipped sample data; open it from file: and exercise rows, search, CSV, and source hash"
   },
   {
     "id": "default-redaction",
     "claim": "The default rules replace email addresses, bearer tokens, common secret fields, and AWS-style access keys.",
     "where": "README redaction section",
-    "test": "cargo test redacts_default_secrets",
-    "sandbox": "in-process rules over a fixture with an email, token, and secret field"
+    "test": "npm test -- --grep @claim:default-redaction",
+    "sandbox": "generate a browser-visible artifact from a structured fixture and assert all named secret values are absent"
   },
   {
     "id": "local-processing",
@@ -26,5 +26,12 @@
     "where": "demo toolbar",
     "test": "npm test -- --grep @claim:csv-download",
     "sandbox": "fresh browser context at /demo; download and inspect the CSV"
+  },
+  {
+    "id": "demo-cli",
+    "claim": "The CLI demo creates the six-record correlated checkout review.",
+    "where": "README demo section, /demo",
+    "test": "npm test -- --grep @claim:demo-cli",
+    "sandbox": "run --demo from a clean checkout, parse its JSON result, and open the generated artifact"
   }
 ]

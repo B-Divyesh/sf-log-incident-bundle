@@ -80,7 +80,7 @@ log-incident-bundle --demo
 
 It prints the path to a temporary review copy built from
 [`examples/payment-api.log`](examples/payment-api.log). The browser version is
-at `/demo`; its sample state uses the separate `demo:` browser namespace.
+at `/demo`; its sample state stays in memory and does not touch your saved data.
 
 ## Paid project license
 
@@ -92,9 +92,11 @@ can be restored from the landing page after a device change.
 ## Develop and verify
 
 ```sh
-npm install
+npm ci
 npm test
 npm run build:site  # writes the static site to dist/site
+npm run typecheck
+npm run lint
 cargo test
 cargo build --release
 ```
@@ -109,6 +111,13 @@ cargo package
 ```
 
 Do not publish from this repository. The factory owns registry credentials.
+
+## Deploy
+
+The factory deploys the static companion site from `dist/site`. Build it with
+`npm run build:site`; the checked-in `staticwebapp.config.json` sets the
+security headers, route rewrites, real 404 response, and immutable cache policy
+for hashed assets. Push an approved commit to `main` for the factory deployment.
 
 ## Scope
 
