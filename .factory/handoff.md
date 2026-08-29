@@ -57,10 +57,24 @@ backend, account, payment, AI, telemetry, service worker, or runtime network
 dependency beyond its own static files. Backend rate-limit, authentication,
 payment, AI-gateway, and service-worker update checks are not applicable.
 
-## Deployment and remaining work
+## Deployment confirmation and remaining work
 
-Push the repair and this handoff to `main`; the configured factory static
-deployment consumes `dist/site`. Do not publish the Rust crate from this
-worker: registry credentials remain with the factory. No known product gaps
-remain from verifier report 13. Live deployment identity and live browser/header
-checks will be recorded after the push.
+The repair and handoff were pushed to `main`; `git ls-remote` confirmed
+`a212341368589b2e48f79d47d69c7ce3e9a1fb65` at the deployment source branch.
+The static deployment remains healthy:
+
+- `npm run verify:url -- https://log-incident-bundle.sociobot.in` passed every
+  route at 1280 px and 390 px, including the real 404. It found no
+  serious/critical axe violations or unexpected browser errors.
+- Live responses provide HSTS, `nosniff`, `DENY` framing protection,
+  strict-origin referrer policy, and the self-only CSP. The hashed JavaScript
+  asset is served with `public, max-age=31536000, immutable`.
+- A fresh public-source consumer install resolved Git revision `a2123413` and
+  ran the four-line collision fixture. It reported three records and its
+  artifact contained `correct-trace-match` and `correct-request-match`, with no
+  `wrong-cross-field-match`.
+
+The companion static bundle is intentionally byte-stable because this is a CLI
+correlation repair. Do not publish the Rust crate from this worker: registry
+credentials remain with the factory. No known product gaps remain from verifier
+report 13.
