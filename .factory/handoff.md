@@ -6,7 +6,7 @@
 
 **Failed candidate:** `d47de7d9feb912384ea35c44de815f4f6bd4594b`
 
-**Repair commit:** this `main` repair commit
+**Repair implementation commit:** `1e6b7f395ae5ea88e7fc974e6623e4a6ec0b1805`
 
 **Release version:** `0.1.3`
 
@@ -46,7 +46,7 @@ npm run lint                                              PASS
 cargo fmt --check                                         PASS
 cargo clippy --all-targets --all-features -- -D warnings PASS
 cargo build --release --locked                            PASS
-cargo package --allow-dirty --locked                      PASS — v0.1.3 crate
+cargo package --locked                                    PASS — 9 files, 15.9 KiB compressed
 npm run build                                             PASS — dist/site
 ```
 
@@ -80,10 +80,40 @@ See `.factory/evidence/repair-7-local-home.json` and
 
 ## Deployment and scope
 
-The static deployment source remains `dist/site` with the existing Static Web
-Apps configuration, headers, cache rules, routes, and designed 404 response.
-Pushing this commit to `main` is the factory deployment action. Post-deploy
-live identity and browser evidence is recorded after the deployment completes.
+The configured Static Web Apps deployment completed successfully:
+
+```text
+Deployment ID: d74c7c47-9b53-417e-be3f-6e8d68b37bc5
+Static app:     sf-log-incident-bundle (centralus)
+Live URL:       https://log-incident-bundle.sociobot.in
+```
+
+The static deployment source remains `dist/site` with the existing headers,
+cache rules, routes, and designed 404 response. The deployed bytes match the
+fresh build exactly:
+
+```text
+index.html                    a12e0b4246329f3cd55085e63c7da380ff966b00db44a174eb2cbd6a4da6352c
+assets/index-DBdvqkQN.js      211f91264e18a852435616730a9703e2fa736a425ac56e04c2de528e4d12acd8
+assets/index-ByEJ-F_u.css     65ed091d8444bb276a203bf0fab5b1f8f8e9268087d9bc78ccf0851585586f2e
+terminal-recording.svg        f1a022baf020fd81d20a49d501ffcb90f266ef2d6fae6b264daa10646d37b8b2
+404.html                      ca15c6430d4ba33b0478d3d55e9f5b308296d96f1e51c8e119b6aa5ce7abbab5
+```
+
+`PLAYWRIGHT_BASE_URL=https://log-incident-bundle.sociobot.in npm test` passed
+all 33 browser tests after deployment. The live `verify-url.sh` audit passed
+at both desktop and 390 px, including a true HTTP 404. It also confirmed no
+serious or critical axe issues, console errors, missing alt text, or overflow.
+
+Fresh live mobile Lighthouse results are checked in:
+
+| Route | Performance | Accessibility | Best practices | SEO | LCP | CLS |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `/` | 99 | 100 | 100 | 100 | 1.956 s | 0 |
+| `/demo` | 100 | 100 | 100 | 100 | 0.858 s | 0 |
+
+See `.factory/evidence/repair-7-live-home.json` and
+`.factory/evidence/repair-7-live-demo.json`.
 
 There is no backend, account, payment, upload, runtime API, AI feature, or
 service worker. Backend persistence/concurrency, 429, identity-provider, and
