@@ -73,9 +73,30 @@ neither moved nor duplicated.
 
 ## Deployment and live checks
 
-The repair commits are ready to push to `main`, which is the repository's
-static deployment workflow. After the push, this handoff will be updated with
-the deployed revision and live URL evidence.
+- Pushed `671b545`, `c988c1b`, and `d9890d7` to `main`; remote `main` is
+  `d9890d76d7ce09e7d61cdfdba49af947491a64fb`.
+- Deployed using the work order's exact static configuration:
+  `npm ci && npm run build:site`, then
+  `/opt/fleet/lib/deploy-static.sh log-incident-bundle dist/site`.
+  Azure Static Web Apps deployment ID:
+  `a7a7dd91-e936-4402-9a5f-d8d88347b66d`.
+- `https://log-incident-bundle.sociobot.in` serves this build. SHA-256 matches
+  local `dist/site` for `index.html`, `404.html`, the hero image, terminal
+  recording, CSS, and `assets/index-D-Yg0wRF.js`.
+- `npm run verify:url -- https://log-incident-bundle.sociobot.in` passed all
+  five routes at 1280 px and 390 px. It checked the real HTTP 404, metadata,
+  structure, no overflow, browser errors, and serious/critical Axe findings.
+  `PLAYWRIGHT_BASE_URL=https://log-incident-bundle.sociobot.in npm test`
+  passed all 34 browser tests plus all 7 Rust tests.
+- Live response policy is correct: HTML has self-only CSP, HSTS, `nosniff`,
+  `DENY` framing, and strict-origin referrer policy; HTML revalidated to 304
+  with its ETag; the hashed JavaScript has
+  `Cache-Control: public, max-age=31536000, immutable`; `/missing` is HTTP 404.
+- Live Lighthouse 13.4.1 mobile: home 99 performance / 100 accessibility /
+  100 best practices / 100 SEO (LCP 1.960 s, CLS 0, TBT 34 ms); demo
+  100 / 100 / 100 / 100 (LCP 0.788 s, CLS 0, TBT 15.5 ms). Reports:
+  `.factory/evidence/repair-8-live-home.json` and
+  `.factory/evidence/repair-8-live-demo.json`.
 
 ## Known gaps and next steps
 
