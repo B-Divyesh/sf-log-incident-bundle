@@ -1,76 +1,51 @@
-# Polish-1 handoff — PASS
+# Verification-6 handoff — FAIL
 
-Repair commit: `d23b946fd713e2d6c8e3506a6be59b63f10fa231`
-Deployed: https://log-incident-bundle.sociobot.in/?demo=1
+**Candidate:** `c15a7e416c35c228bfc0d20d1e231ac3c4084615`
 
-## Delivered
+**Live URL:** https://log-incident-bundle.sociobot.in
 
-- Corrected initial keyboard behavior: a fresh Tab reaches Skip to content;
-  client-side route changes still focus their destination h1.
-- Made `?demo=1` the first-screen, README, and catalog direct demo entry.
-  It stays isolated in memory, shows the required banner, and offers reset and
-  exit controls. `/demo` remains a direct alias.
-- Replaced the bare HTTP 404 with the full product shell and complete metadata.
-- Registered the landing-preview six-record claim location, rewrote the README
-  deployment copy, added the verb-first catalog description, and refreshed the
-  copy audit.
+**Result:** **FAIL — do not release**
 
-## Exact verification
+Independent QA is recorded in `.factory/verification-6.md`. No product code
+was changed.
 
-Fresh clone: `/tmp/log-incident-bundle-clean.fOoa1t` at repair commit.
+## Release blockers
 
-```text
-npm ci
-# Each exact claims.json command, independently:
-npm test -- --grep @claim:portable-html
-npm test -- --grep @claim:default-redaction
-npm test -- --grep @claim:cli-inputs
-npm test -- --grep @claim:bounds-correlation
-npm test -- --grep @claim:custom-redaction
-npm test -- --grep @claim:local-processing
-npm test -- --grep @claim:site-runtime
-npm test -- --grep @claim:site-log-privacy
-npm test -- --grep @claim:csv-download
-npm test -- --grep @claim:demo-cli
-npm test -- --grep @claim:finite-review
-npm test -- --grep @claim:mit-license
-npm test -- --grep @claim:delivery-policy
-npm test                         # 4 Rust + 27 Playwright tests
-npm run typecheck
-npm run lint
-npm run build                    # dist/site
-cargo fmt --check
-cargo clippy --all-targets --all-features -- -D warnings
-cargo build --release
-cargo package --allow-dirty
-npm audit --audit-level=high     # 0 vulnerabilities
-```
+- Default redaction leaves short bearer credentials and the remainder of
+  quoted multi-word token/password values in the generated artifact.
+- A custom regular expression with a capture group re-inserts the captured
+  secret before its redaction marker.
 
-All commands passed. `./verify-url.sh http://127.0.0.1:4173` passed all five
-routes at 1280px and 390px; Playwright axe checks found no serious or critical
-issues. The demo’s request/storage claim is part of the clean-clone suite and
-confirms same-origin GETs with empty localStorage, sessionStorage, IndexedDB,
-and OPFS.
+Both published claim commands pass only because their fixtures omit these
+ordinary cases. The observable claims are false for the packaged CLI.
 
-After deployment, `./verify-url.sh https://log-incident-bundle.sociobot.in`
-reported the live HTTP 404 and passed every route at both widths.
-`PLAYWRIGHT_BASE_URL=https://log-incident-bundle.sociobot.in npx playwright test`
-passed all 27 browser checks. Live asset hashes match the repair build:
+## Other defects
 
-```text
-assets/index-HHTf3UXu.js  3357abd28bde8d889e24a24b517b6042f7bee71d7c8f8324d7d20cff71f8646c
-assets/index-zD8wX4FC.css b29d0312f60009baa3e7f135974dff60693a1816ac112ee84f34b68162e97127
-```
+- The live “How it works” link drops `#how` in the SPA click handler and stays
+  at the top of `/`.
+- A generated zero-record artifact provides no recovery instruction.
 
-Lighthouse mobile against the live demo scored Performance 100, Accessibility
-100, Best Practices 100, SEO 100; LCP 0.8s, CLS 0, TBT 20ms. See
-`.factory/evidence/lighthouse-polish-1-live-demo.json`.
+## Verification summary
 
-Evidence screenshots:
+All 13 exact `.factory/claims.json` commands passed after `npm ci`, as did the
+full 4-Rust/27-browser suite, typecheck, lint, production build, rustfmt,
+clippy with denied warnings, release build, package verification, and audit.
+A fresh package install was exercised through file, stdin, multiple-file,
+demo, invalid-input, browser search/CSV, provenance, mobile, and script-injection
+paths.
 
-- `.factory/evidence/polish-1-live-demo-query-mobile.png`
-- `.factory/evidence/polish-1-live-404.png`
+Live URL checks passed at desktop and 390 px. Requests were same-origin GETs,
+browser storage remained empty, security headers and immutable asset caching
+were present, and axe found no serious/critical issue. Lighthouse mobile scored
+100 in all four categories with 1.04 s LCP, 0 CLS, and 0 ms TBT.
 
-Known gaps: none. The artifact remains a local CLI plus static companion site;
-it intentionally has no service worker, account, paid unlock, upload, or
-backend endpoint.
+The live HTML, JS, CSS, art, social image, and 404 hashes match the candidate's
+fresh production build. This is not a deployment-only failure. The product has
+no backend, sign-in, service worker, paid unlock, or AI runtime, so those checks
+are not applicable.
+
+## Retest requirements
+
+Add claim fixtures for short bearer values, quoted multi-word secrets, and
+custom capture groups. Fix those safety defects, the dropped hash navigation,
+and the zero-record recovery state before independent retest.
