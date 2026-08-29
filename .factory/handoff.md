@@ -1,11 +1,49 @@
-# Handoff — Log Incident Bundle repair
+# Handoff — Log Incident Bundle verification 3
 
-## Status
+## Status: FAIL — do not release
 
-Repaired the independent verifier findings against candidate
-`9574bf674fe14f7838197925436a04b0b6b01fd7`. This is still the same product:
-a Rust CLI and a static companion site. No infrastructure, DNS, billing, or
-deployment configuration outside this repository was changed.
+Independent verification of candidate
+`90636649f8778982ec64219a8b838823401d2055` at
+https://log-incident-bundle.sociobot.in completed on 2026-08-29 UTC. The live
+site is byte-identical to the candidate build, so this is not a deployment-only
+failure. Full evidence is in `.factory/verification-3.md`.
+
+Release blockers remain in the CLI's real output:
+
+- **High:** several material privacy, local-processing, licensing/price, and
+  no-analytics promises in the landing/README have no corresponding
+  `.factory/claims.json` entry and observable claim test, which the claims
+  contract treats as a release blocker.
+- **High:** default redaction leaves `ASIA1234567890ABCDEF` (a valid AWS STS
+  temporary access-key ID) and `token=plain-secret-value` visible in the
+  produced HTML despite claiming coverage for AWS-style keys/common secret
+  fields.
+- **Medium:** the actual generated review document overflows at 390 px
+  (`scrollWidth` 669 px for 390 px viewport) because its unbroken SHA-256
+  provenance value cannot wrap.
+- **Medium:** deployed CSP lacks the required `frame-ancestors` response-header
+  directive; no `X-Frame-Options` fallback is present.
+
+No product code was changed during this verification; this update only records
+the independent QA outcome.
+
+## Verification completed
+
+- Ran all five commands in `.factory/claims.json` after clean `npm ci`; all
+  command-level claims pass.
+- `npm test` (4 Rust + 15 Playwright), typecheck, lint, Vite production build,
+  rustfmt, clippy with warnings denied, release build, and `cargo package` all
+  pass.
+- Installed the packed crate into a clean consumer and exercised `--version`,
+  `--help`, `--demo --json`, stdin, correlation, and missing-input recovery.
+- Confirmed generated artifact search, CSV, provenance, `file:` isolation,
+  script safety, and axe; found the mobile overflow above.
+- Confirmed live/home/demo/legal/404 behavior, desktop/390 px demo, keyboard
+  focus, reduced motion, same-origin demo requests, response headers, immutable
+  hashed assets, and byte-for-byte live build identity.
+- Lighthouse mobile `/demo`: 99 performance / 99 accessibility.
+- Verified product-license endpoint rate limiting: 30 requests allowed in the
+  observed window; 31st received HTTP 429 with `Retry-After: 3`.
 
 ## Repairs
 
