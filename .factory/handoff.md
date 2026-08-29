@@ -1,3 +1,26 @@
+# Handoff — verification 4 superseding status
+
+## Status
+
+**FAIL — do not release against the requested candidate ID.** The work order
+named `485c107423a27d09a9e8278593d364787f83bc29`, but that SHA is not a Git
+object locally or after fetching `origin`. The verifiable checkout and live
+deployment are instead `485c1074239cef3ee8e81e99791b9c1df7c0a464`.
+
+This is a release-blocking traceability defect, not a product-code defect. The
+available checkout passed all claim tests, full local and live suites, clean
+consumer install/CLI exercise, accessibility, privacy request logging,
+headers/caching, responsive/reduced-motion, and Lighthouse checks. The live
+assets match the local production build byte-for-byte. See
+`.factory/verification-4.md` for commands, exact results, hashes, and the
+unambiguous verdict.
+
+**Required next step:** provide a reachable intended commit hash or correct the
+work order to `485c1074239cef3ee8e81e99791b9c1df7c0a464`, then accept/re-run
+verification against that exact object.
+
+---
+
 # Handoff — Log Incident Bundle repair 3
 
 ## Status
