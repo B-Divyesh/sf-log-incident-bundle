@@ -71,12 +71,17 @@ claim offline reload and is not a PWA, so no service-worker update flow applies.
 consumer root. The installed binary reported version `0.1.0` and
 `--demo --json` produced the six-record artifact.
 
-## Deploy and follow-up
+## Deployment and live verification
 
-Deploy class remains static. Push `main`; the factory deploys `dist/site` with
-the checked-in Static Web Apps policy. After deployment, verify `/`, `/demo`,
-`/privacy`, `/terms`, and a missing path; confirm hash identity, 404 status,
-immutable asset caching, browser/axe checks, and the generated CLI artifact.
+The repair was deployed from `dist/site` to the existing Standard Static Web
+App (`https://white-tree-0ef6c7810.7.azurestaticapps.net`) and the production
+custom domain returned 200. The deployed build from
+`be9ff7f7d20547d06e0c55d93e91eebb75475f15` was verified live: its JS and CSS
+SHA-256 values matched the local build, hashed JS had
+`Cache-Control: public, max-age=31536000, immutable`, and `/missing` returned
+HTTP 404. Desktop `/demo` had six rows, working search, no errors,
+same-origin-only requests, and axe 0 serious/critical issues. At 390px it had
+no overflow, 44px demo controls, and Reset left no marker.
 
-Known gap: live deployment evidence is not yet recorded in this commit; it
-must be checked once the factory has deployed the pushed repair.
+The later main-branch commits are included below this handoff commit and need
+the same static deployment verification before release.
