@@ -73,15 +73,13 @@ consumer root. The installed binary reported version `0.1.0` and
 
 ## Deployment and live verification
 
-The repair was deployed from `dist/site` to the existing Standard Static Web
-App (`https://white-tree-0ef6c7810.7.azurestaticapps.net`) and the production
-custom domain returned 200. The deployed build from
-`be9ff7f7d20547d06e0c55d93e91eebb75475f15` was verified live: its JS and CSS
-SHA-256 values matched the local build, hashed JS had
-`Cache-Control: public, max-age=31536000, immutable`, and `/missing` returned
-HTTP 404. Desktop `/demo` had six rows, working search, no errors,
-same-origin-only requests, and axe 0 serious/critical issues. At 390px it had
-no overflow, 44px demo controls, and Reset left no marker.
-
-The later main-branch commits are included below this handoff commit and need
-the same static deployment verification before release.
+The final combined `main` state was deployed from `dist/site` to the existing
+Standard Static Web App (`https://white-tree-0ef6c7810.7.azurestaticapps.net`)
+and the production custom domain returned 200. Live JS SHA-256 matched the
+local build at `faf10d13e1de700697ab3fbae947737334c143467f03af16c473aa4eb70cfd99`;
+live CSS matched at
+`4baa4e30b520360eb4cd439d6e2748f095d832d80cee1dc808f5ac4c856f0700`.
+Hashed JS has `Cache-Control: public, max-age=31536000, immutable`, and
+`/missing` returns HTTP 404. Desktop `/demo` has six rows, working search, no
+errors, same-origin-only requests, and axe 0 serious/critical issues. At 390px
+it has no overflow, 44px demo controls, and Reset leaves no marker.
