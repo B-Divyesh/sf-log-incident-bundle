@@ -62,27 +62,12 @@ test('@claim:site-log-privacy website has no log upload or account feature', asy
   page.on('request', request => methods.push(request.method()));
   await page.goto('/');
   expect(await page.locator('input[type="file"], form').count()).toBe(0);
-  expect(await page.getByRole('link', { name: /sign in|log in|register|create account|account/i }).count()).toBe(0);
-  expect(await page.getByRole('button', { name: /sign in|log in|register|create account|account/i }).count()).toBe(0);
+  const homeAffordances = (await page.locator('a, button').allTextContents()).join(' ').toLowerCase();
+  expect(homeAffordances).not.toMatch(/\b(sign in|log in|login|register|create account|my account)\b/);
+  expect(await page.locator('a[href*="login" i], a[href*="account" i], a[href*="register" i]').count()).toBe(0);
   await page.goto('/privacy');
   await expect(page.getByText('The website has no log upload or account feature.')).toBeVisible();
   expect(methods.every(method => method === 'GET')).toBe(true);
-});
-
-test('@claim:install-cli landing and demo exit lead to a usable CLI install path', async ({ page }) => {
-  await page.goto('/');
-  await page.getByRole('link', { name: 'Install the CLI' }).click();
-  await expect(page).toHaveURL(/\/#install$/);
-  const command = page.locator('.install-command code');
-  await expect(command).toHaveText('cargo install --git https://github.com/B-Divyesh/sf-log-incident-bundle.git --locked log-incident-bundle');
-  await expect(page.getByRole('link', { name: /Read the source on GitHub/ })).toHaveAttribute('href', 'https://github.com/B-Divyesh/sf-log-incident-bundle');
-  await page.getByRole('button', { name: 'Copy install command' }).click();
-  await expect(page.locator('#install-result')).toContainText(/Install command copied|Copy the install command shown above/);
-
-  await page.goto('/?demo=1');
-  await page.getByRole('link', { name: 'Start for real' }).click();
-  await expect(page).toHaveURL(/\/#install$/);
-  await expect(command).toBeVisible();
 });
 
 test('@claim:csv-download demo downloads every sample record as CSV', async ({ page }) => {
@@ -325,6 +310,23 @@ test('@claim:mit-license project is MIT licensed with no purchase flow', async (
   expect(await page.locator('a[href*="checkout"]').count()).toBe(0);
   await page.goto('/terms');
   await expect(page.getByText('There is no paid tier or purchase flow.')).toBeVisible();
+});
+
+test('@claim:install-cli landing and demo lead to a usable source install path', async ({ page }) => {
+  const command = 'cargo install --git https://github.com/B-Divyesh/sf-log-incident-bundle.git --locked log-incident-bundle';
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Install the CLI' }).click();
+  await expect(page).toHaveURL(/\/#install$/);
+  await expect(page.getByRole('heading', { name: 'Install the CLI' })).toBeVisible();
+  await expect(page.locator('#install-command')).toHaveText(command);
+  await expect(page.getByRole('link', { name: /Read the source on GitHub/ })).toHaveAttribute('href', 'https://github.com/B-Divyesh/sf-log-incident-bundle');
+  await page.getByRole('button', { name: 'Copy install command' }).click();
+  await expect(page.locator('#install-status')).toContainText(/Install command copied|Install command selected/);
+  await page.goto('/?demo=1');
+  await page.getByRole('link', { name: 'Start for real' }).click();
+  await expect(page).toHaveURL(/\/#install$/);
+  await expect(page.getByRole('heading', { name: 'Install the CLI' })).toBeVisible();
+  await expect(page.locator('#install-command')).toHaveText(command);
 });
 
 test('keyboard path reaches demo and filters records', async ({ page }) => {

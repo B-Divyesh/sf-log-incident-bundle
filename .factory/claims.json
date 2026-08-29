@@ -60,14 +60,14 @@
     "claim": "The website has no log upload or account feature.",
     "where": "landing facts, privacy page",
     "test": "npm test -- --grep @claim:site-log-privacy",
-    "sandbox": "fresh browser context; inspect home and privacy for upload, sign-in, registration, and account affordances; assert every request is GET"
+    "sandbox": "fresh browser context; inspect home and privacy for file inputs, forms, sign-in, registration, and account affordances; assert every request is GET"
   },
   {
     "id": "install-cli",
     "claim": "The site provides a copyable command to install the CLI from its public source repository.",
-    "where": "landing install action and install section",
+    "where": "landing action, install section, demo banner",
     "test": "npm test -- --grep @claim:install-cli",
-    "sandbox": "follow the landing install action and the demo exit action; assert the command, copy result, and source link are visible"
+    "sandbox": "fresh browser context; follow the landing Install the CLI and demo Start for real links; assert the stable Cargo source-install command and repository link are visible"
   },
   {
     "id": "csv-download",

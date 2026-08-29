@@ -66,6 +66,12 @@ button,
 .secondary {
   background: var(--ink);
 }
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
 :focus-visible {
   outline: 3px solid var(--moss);
   outline-offset: 4px;
@@ -206,6 +212,7 @@ h1 {
     12px ui-monospace,
     monospace;
 }
+.install,
 .live-sheet,
 .process,
 .install,
@@ -220,6 +227,42 @@ h2 {
   font-size: clamp(1.9rem, 4vw, 3.1rem);
   max-width: 18ch;
   margin: 0.15em 0 0.6em;
+}
+.install {
+  max-width: 860px;
+}
+.install > p:not(.eyebrow) {
+  max-width: 46ch;
+}
+.install-command {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 12px;
+  max-width: 860px;
+}
+.install-command code {
+  display: flex;
+  flex: 1 1 480px;
+  min-height: 44px;
+  align-items: center;
+  overflow-wrap: anywhere;
+  border: var(--rule);
+  padding: 10px 12px;
+  background: var(--night);
+  color: var(--night-ink);
+  font: 14px/1.4 ui-monospace, monospace;
+}
+.install-command button {
+  background: var(--paper-deep);
+  color: var(--ink);
+  font-weight: bold;
+}
+#install-status {
+  display: block;
+  min-height: 1.55em;
+  margin-top: 8px;
+  font: 14px ui-monospace, monospace;
 }
 .terminal-recording {
   max-width: 740px;
@@ -549,6 +592,13 @@ footer p:last-child {
     gap: 32px;
     padding: 36px 0;
   }
+  .hero-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .hero-actions .button {
+    width: 100%;
+  }
   .hero figure {
     max-width: 94%;
     justify-self: center;
@@ -583,7 +633,12 @@ footer p:last-child {
     width: 100%;
   }
   .after-action {
-    margin: 12px 0 0;
+    max-width: 30ch;
+    margin: 0;
+  }
+  .install-command code,
+  .install-command button {
+    width: 100%;
   }
   .legal,
   .not-found {
