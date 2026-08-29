@@ -9,7 +9,7 @@
   {
     "id": "default-redaction",
     "claim": "Default rules replace email addresses, bearer tokens, common secret fields including OAuth tokens, authorization, credentials, sessions, cookies, and private keys, plus AKIA or ASIA AWS access-key IDs.",
-    "where": "README redaction section",
+    "where": "landing hero, landing action, README redaction section",
     "test": "npm test -- --grep @claim:default-redaction",
     "sandbox": "generate a browser-visible artifact containing client_secret, refresh_token, id_token, private_key, Basic authorization, session, cookie, prefix/suffix variants, and structured JSON fields; assert every raw secret is absent from the file and rendered view"
   },
@@ -58,9 +58,16 @@
   {
     "id": "site-log-privacy",
     "claim": "The website has no log upload or account feature.",
-    "where": "privacy page",
+    "where": "landing facts, privacy page",
     "test": "npm test -- --grep @claim:site-log-privacy",
-    "sandbox": "fresh browser context; inspect home and privacy for file inputs and forms; assert every request is GET"
+    "sandbox": "fresh browser context; inspect home and privacy for upload, sign-in, registration, and account affordances; assert every request is GET"
+  },
+  {
+    "id": "install-cli",
+    "claim": "The site provides a copyable command to install the CLI from its public source repository.",
+    "where": "landing install action and install section",
+    "test": "npm test -- --grep @claim:install-cli",
+    "sandbox": "follow the landing install action and the demo exit action; assert the command, copy result, and source link are visible"
   },
   {
     "id": "csv-download",

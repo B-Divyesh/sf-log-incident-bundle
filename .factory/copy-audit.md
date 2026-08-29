@@ -9,6 +9,8 @@ Sentence counts use whitespace-separated words. No landing sentence exceeds
 | For teams who need answers without granting raw production-log access. | 10 | pass |
 | Try it with sample data | 5 | pass |
 | See a redacted incident review first. | 6 | pass |
+| Install the CLI | 3 | pass |
+| Copy a command for a machine with Rust. | 8 | pass |
 | Reads a file or standard input you choose. | 8 | pass |
 | Writes one self-contained HTML review copy. | 6 | pass |
 | MIT licensed. | 2 | pass |
@@ -18,6 +20,11 @@ Sentence counts use whitespace-separated words. No landing sentence exceeds
 | Recorded from the packaged `log-incident-bundle --demo` command. | 6 | pass |
 | Read the terminal transcript | 4 | pass |
 | Open the working sample review | 5 | pass |
+| Install the CLI | 3 | pass |
+| Run this on a machine with Rust. | 8 | pass |
+| It installs the current source from GitHub. | 7 | pass |
+| Copy install command | 3 | pass |
+| Read the source on GitHub | 6 | pass |
 | Make an incident review copy | 5 | pass |
 | Choose the time window. | 4 | pass |
 | Read a file or standard input. | 6 | pass |
@@ -42,6 +49,7 @@ Sentence counts use whitespace-separated words. No landing sentence exceeds
 | Push an approved commit to `main` for the factory deployment. | 10 | pass |
 | The landing page includes a self-hosted terminal recording from the packaged `--demo` command. | 13 | pass |
 | Refresh it after changing the demo with: | 8 | pass |
+| The CLI reads RFC 3339 timestamps, such as `2026-08-22T14:01:00Z`, at the start of each line. | 14 | pass |
 | For unquoted secret fields, it removes the rest of that line. | 11 | pass |
 | It also removes complete PEM private-key blocks across multiple lines. | 10 | pass |
 
@@ -58,4 +66,4 @@ exceeds 22 words or uses a banned marketing word.
 | Joined records | excerpt |
 | Sample environment | demo |
 
-Catalog description: **Create a redacted incident log review copy for a teammate.** (10 words)
+Catalog description: **Create a redacted incident review copy from selected logs.** (9 words)

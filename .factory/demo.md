@@ -7,6 +7,9 @@ The browser demo shows six redacted records from a checkout timeout. It uses
 only in-memory sample records. **Reset demo** restores the original sample and
 clears the historical `demo:log-incident-bundle:active` marker if one exists.
 It writes no demo state to localStorage, sessionStorage, IndexedDB, or OPFS.
+**Start for real** exits the sandbox and opens the landing page's `#install`
+section. That section has a copyable clean-machine install command and a link
+to the public source repository.
 
 For the real CLI demo, run:
 

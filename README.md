@@ -52,9 +52,10 @@ journalctl -u payments --since '10 minutes ago' | \
   log-incident-bundle --output payment-review.html
 ```
 
-The CLI recognizes ISO-like timestamps at the start of a line. `--from` and
-`--to` include records in that time window. Each `--correlate FIELD` finds
-values for that field inside the window, then adds other matching records.
+The CLI reads RFC 3339 timestamps, such as `2026-08-22T14:01:00Z`, at the
+start of each line. `--from` and `--to` include records in that time window.
+Each `--correlate FIELD` finds values for that field inside the window, then
+adds other matching records.
 
 ## Redaction
 
