@@ -6,7 +6,7 @@ It is for small teams that need an answer from production logs without giving
 someone broad production-log access. The CLI reads a chosen file or standard
 input and writes one self-contained HTML review copy.
 
-[Try the sample review](https://log-incident-bundle.sociobot.in/demo) ·
+[Try the sample review](https://log-incident-bundle.sociobot.in/?demo=1) ·
 [Privacy](https://log-incident-bundle.sociobot.in/privacy) ·
 [Terms](https://log-incident-bundle.sociobot.in/terms)
 
@@ -81,8 +81,8 @@ log-incident-bundle --demo
 
 It prints the path to a temporary review copy built from
 [`examples/payment-api.log`](examples/payment-api.log). The browser version is
-at `/demo`. It uses six fixed sample records in memory and writes no demo data
-to browser storage.
+at `/?demo=1` or `/demo`. It uses six fixed sample records in memory and writes
+no demo data to browser storage.
 
 ## Develop and verify
 
@@ -109,10 +109,10 @@ Do not publish from this repository. The factory owns registry credentials.
 
 ## Deploy
 
-The factory deploys the static companion site from `dist/site`. Build it with
-`npm run build:site`; the checked-in `staticwebapp.config.json` sets the
-security headers, route rewrites, real 404 response, and immutable cache policy
-for hashed assets. Push an approved commit to `main` for the factory deployment.
+The factory deploys the static companion site from `dist/site`. Run
+`npm run build:site` to create it. The deployment config adds security headers,
+route rewrites, a 404 page, and cache rules for hashed assets. Push an approved
+commit to `main` for the factory deployment.
 
 ## Scope
 

@@ -1,6 +1,7 @@
 # Demo sandbox
 
-Open `/demo` or visit `https://log-incident-bundle.sociobot.in/demo`.
+Open `/?demo=1` for the direct isolated demo entry, or use `/demo`.
+The catalog and first-screen action use `https://log-incident-bundle.sociobot.in/?demo=1`.
 
 The browser demo shows six redacted records from a checkout timeout. It uses
 only in-memory sample records. **Reset demo** restores the original sample and

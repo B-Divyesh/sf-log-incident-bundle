@@ -65,7 +65,7 @@
   {
     "id": "demo-cli",
     "claim": "The CLI demo creates the six-record correlated checkout review.",
-    "where": "README demo section, /demo",
+    "where": "landing preview, README demo section, /demo",
     "test": "npm test -- --grep @claim:demo-cli",
     "sandbox": "run --demo from a clean checkout, parse its JSON result, and open the generated artifact"
   },

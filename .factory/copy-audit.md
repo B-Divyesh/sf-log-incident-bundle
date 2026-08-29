@@ -1,4 +1,4 @@
-# Landing copy audit
+# Landing and README copy audit
 
 Sentence counts use whitespace-separated words. No landing sentence exceeds
 22 words. No landing sentence uses a banned word.
@@ -7,7 +7,7 @@ Sentence counts use whitespace-separated words. No landing sentence exceeds
 | --- | ---: | --- |
 | Create a redacted log excerpt | 5 | pass |
 | For teams who need answers without granting raw production-log access. | 10 | pass |
-| Try it with sample data | 6 | pass |
+| Try it with sample data | 5 | pass |
 | See a redacted incident review first. | 6 | pass |
 | Reads a file or standard input you choose. | 8 | pass |
 | Writes one self-contained HTML review copy. | 6 | pass |
@@ -30,6 +30,18 @@ Sentence counts use whitespace-separated words. No landing sentence exceeds
 | Review the final file before sharing it. | 7 | pass |
 | Bounded log excerpts for incident review. | 6 | pass |
 
+## README deployment copy
+
+| Copy | Words | Result |
+| --- | ---: | --- |
+| The factory deploys the static companion site from `dist/site`. | 9 | pass |
+| Run `npm run build:site` to create it. | 6 | pass |
+| The deployment config adds security headers, route rewrites, a 404 page, and cache rules for hashed assets. | 16 | pass |
+| Push an approved commit to `main` for the factory deployment. | 10 | pass |
+
+All other README prose was rechecked against the review-1 audit. No sentence
+exceeds 22 words or uses a banned marketing word.
+
 ## Terminology
 
 | Concept | One term |
@@ -40,4 +52,4 @@ Sentence counts use whitespace-separated words. No landing sentence exceeds
 | Joined records | excerpt |
 | Sample environment | demo |
 
-Catalog description: **Create a redacted incident log review copy.** (7 words)
+Catalog description: **Create a redacted incident log review copy for a teammate.** (10 words)

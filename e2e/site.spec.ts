@@ -214,8 +214,16 @@ test('@claim:mit-license project is MIT licensed with no purchase flow', async (
 test('keyboard path reaches demo and filters records', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('link', { name: 'Try it with sample data' }).press('Enter');
+  await expect(page).toHaveURL(/\?demo=1$/);
+  await expect(page.getByRole('status')).toContainText('Demo — sample data, nothing is saved');
   await page.getByLabel('Search records').fill('timeout');
   await expect(page.locator('#records tr')).toHaveCount(1);
+});
+
+test('fresh loads start keyboard navigation at the skip link', async ({ page }) => {
+  await page.goto('/');
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused();
 });
 
 test('legal routes set page titles', async ({ page }) => {
@@ -232,6 +240,15 @@ test('demo route sets its canonical URL', async ({ page }) => {
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `${siteOrigin}/demo`);
 });
 
+test('query demo entry is isolated and uses demo metadata', async ({ page }) => {
+  await page.goto('/?demo=1');
+  await expect(page).toHaveTitle('Demo — Log Incident Bundle');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `${siteOrigin}/demo`);
+  await expect(page.getByRole('status')).toContainText('Demo — sample data, nothing is saved');
+  await expect(page.locator('#records tr')).toHaveCount(6);
+  expect(await page.evaluate(() => ({ ...localStorage }))).toEqual({});
+});
+
 test('demo reset and exit discard the demo namespace', async ({ page }) => {
   await page.goto('/demo');
   await page.evaluate(() => localStorage.setItem('demo:log-incident-bundle:active', '1'));
@@ -246,6 +263,19 @@ test('route navigation moves focus to the new page heading', async ({ page }) =>
   await page.goto('/');
   await page.getByRole('link', { name: 'Privacy' }).first().click();
   await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
+});
+
+test('standalone 404 has the standard shell, metadata, and legal links', async ({ page }) => {
+  await page.goto('/404.html');
+  await expect(page).toHaveTitle('Page not found — Log Incident Bundle');
+  await expect(page.getByRole('link', { name: 'Skip to content' })).toHaveCount(1);
+  await expect(page.getByRole('banner')).toContainText('LOG / INCIDENT');
+  await expect(page.getByRole('contentinfo')).toContainText('Built by Param Factory');
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /Return to the Log Incident Bundle/);
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://log-incident-bundle.sociobot.in/404.html');
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', /incident-press-og\.webp$/);
+  await expect(page.getByRole('link', { name: 'Privacy' }).last()).toHaveAttribute('href', '/privacy');
+  await expect(page.getByRole('link', { name: 'Terms' })).toHaveAttribute('href', '/terms');
 });
 
 test('demo has no serious or critical accessibility violations', async ({ page }) => {
