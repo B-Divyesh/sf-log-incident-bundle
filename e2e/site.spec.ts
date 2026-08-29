@@ -96,12 +96,12 @@ test('@claim:portable-html generated bundle renders, searches, exports, and show
 });
 
 test('@claim:default-redaction generated bundles redact every named default category', async ({ page }) => {
-  const input = '2026-08-22T14:01:01Z credential=ASIA1234567890ABCDEF token=plain-secret-value authorization: Bearer abcdefghijklmnop {"apiKey":"json-key-value","password":"json-password-value","access_token":"json-token-value","email":"dev@example.com","aws":"AKIA1234567890ABCDEF"}';
+  const input = '2026-08-22T14:01:01Z credential=ASIA1234567890ABCDEF authorization=Bearer short123 token="two word secret" password="correct horse battery staple" api_key=abc access_token=xy {"apiKey":"json-key-value","password":"json-password-value","access_token":"json-token-value","email":"dev@example.com","aws":"AKIA1234567890ABCDEF"}';
   const bundle = await makeBundle(input);
   await page.goto(bundle.url);
   const body = await page.locator('body').innerText();
   const html = await readFile(bundle.output, 'utf8');
-  for (const secret of ['ASIA1234567890ABCDEF', 'plain-secret-value', 'abcdefghijklmnop', 'json-key-value', 'json-password-value', 'json-token-value', 'dev@example.com', 'AKIA1234567890ABCDEF']) {
+  for (const secret of ['ASIA1234567890ABCDEF', 'short123', 'two word secret', 'correct horse battery staple', 'abc', 'xy', 'json-key-value', 'json-password-value', 'json-token-value', 'dev@example.com', 'AKIA1234567890ABCDEF']) {
     expect(body).not.toContain(secret);
     expect(html).not.toContain(secret);
   }
@@ -138,10 +138,11 @@ test('@claim:bounds-correlation CLI applies time bounds and follows matching tra
 test('@claim:custom-redaction CLI applies reviewable local regex rules', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'log-incident-bundle-rules-'));
   const rules = join(directory, 'rules.txt');
-  await writeFile(rules, 'customer id=customer_id=[A-Za-z0-9_-]+\n');
-  const bundle = await makeBundle('2026-08-22T14:01:01Z customer_id=cust_123 status=ok', ['--redact-file', rules]);
+  await writeFile(rules, 'customer id=customer_id=([A-Za-z0-9_-]+)\n');
+  const bundle = await makeBundle('2026-08-22T14:01:01Z customer_id=cust_private_73 status=ok', ['--redact-file', rules]);
   const html = await readFile(bundle.output, 'utf8');
-  expect(html).not.toContain('customer_id=cust_123');
+  expect(html).not.toContain('customer_id=cust_private_73');
+  expect(html).not.toContain('cust_private_73');
   expect(html).toContain('[REDACTED:CUSTOMER ID]');
 });
 
@@ -257,6 +258,21 @@ test('demo reset and exit discard the demo namespace', async ({ page }) => {
   await page.evaluate(() => localStorage.setItem('demo:log-incident-bundle:active', '1'));
   await page.getByRole('link', { name: 'Start for real' }).click();
   expect(await page.evaluate(() => localStorage.getItem('demo:log-incident-bundle:active'))).toBeNull();
+});
+
+test('How it works keeps its hash and scrolls to the section', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('link', { name: 'How it works' }).click();
+  await expect(page).toHaveURL(/\/#how$/);
+  await expect.poll(() => page.locator('#how').evaluate(element => element.getBoundingClientRect().top)).toBeLessThan(250);
+});
+
+test('zero-record CLI reviews explain how to recover', async ({ page }) => {
+  const sample = await readFile(join(root, 'examples/payment-api.log'), 'utf8');
+  const bundle = await makeBundle(sample, ['--from', '2099-01-01T00:00:00Z']);
+  await page.goto(bundle.url);
+  await expect(page.locator('#rows tr')).toHaveCount(0);
+  await expect(page.getByRole('status')).toContainText('Widen or remove --from or --to, then generate a new review.');
 });
 
 test('route navigation moves focus to the new page heading', async ({ page }) => {

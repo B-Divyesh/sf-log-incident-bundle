@@ -57,7 +57,22 @@ function route(moveFocus = false) {
     }
   });
   document.querySelector('.route-status')!.textContent = `Loaded ${document.title}`;
+  if (location.hash) requestAnimationFrame(() => document.querySelector<HTMLElement>(location.hash)?.scrollIntoView({ behavior: 'instant' }));
 }
-document.addEventListener('click', event => { const target = (event.target as Element).closest<HTMLAnchorElement>('a[data-route]'); if (!target || target.origin !== location.origin) return; event.preventDefault(); if (isDemo() && !new URL(target.href).searchParams.has('demo') && !target.pathname.startsWith('/demo')) localStorage.removeItem('demo:log-incident-bundle:active'); history.pushState({}, '', target.pathname + target.search); route(true); window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }); });
+document.addEventListener('click', event => {
+  const target = (event.target as Element).closest<HTMLAnchorElement>('a[data-route]');
+  if (!target || target.origin !== location.origin) return;
+  event.preventDefault();
+  const destination = new URL(target.href);
+  if (destination.pathname === location.pathname && destination.search === location.search && destination.hash) {
+    history.pushState({}, '', destination.pathname + destination.search + destination.hash);
+    document.querySelector<HTMLElement>(destination.hash)?.scrollIntoView({ behavior: 'instant' });
+    return;
+  }
+  if (isDemo() && !destination.searchParams.has('demo') && !destination.pathname.startsWith('/demo')) localStorage.removeItem('demo:log-incident-bundle:active');
+  history.pushState({}, '', destination.pathname + destination.search + destination.hash);
+  route(true);
+  if (!destination.hash) window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+});
 window.addEventListener('popstate', () => route(true));
 route();

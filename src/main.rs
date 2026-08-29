@@ -103,7 +103,7 @@ fn main() -> Result<()> {
             record
         })
         .collect();
-    let labels = rules.iter().map(|(label, _)| label.clone()).collect();
+    let labels = rules.iter().map(|rule| rule.label.clone()).collect();
     let bundle = Bundle {
         title: &cli.title,
         question: &cli.question,
@@ -159,7 +159,7 @@ fn run_demo(json: bool) -> Result<()> {
         question: "Did the retry cause duplicate charges?",
         generated_at: now_text(),
         redaction_warning: "Redaction is pattern-based and not a guarantee. Review this artifact before sharing.",
-        redaction_rules: rules.iter().map(|rule| rule.0.clone()).collect(),
+        redaction_rules: rules.iter().map(|rule| rule.label.clone()).collect(),
         sources: vec![source],
         records: redacted,
     };
@@ -176,6 +176,12 @@ fn run_demo(json: bool) -> Result<()> {
 }
 
 type SourceContents = Vec<(String, String)>;
+
+struct RedactionRule {
+    label: String,
+    expression: Regex,
+    preserve_prefix: bool,
+}
 
 fn read_sources(files: &[PathBuf]) -> Result<(SourceContents, Vec<Source>)> {
     if files.is_empty() {
@@ -313,28 +319,32 @@ fn field_value(line: &str, field: &str) -> Option<String> {
         .map(|m| m.as_str().to_string())
 }
 
-fn redaction_rules(path: Option<&std::path::Path>) -> Result<Vec<(String, Regex)>> {
+fn redaction_rules(path: Option<&std::path::Path>) -> Result<Vec<RedactionRule>> {
     let secret_field = r"(?:password|passwd|secret|api[_-]?key|access[_-]?token|token)";
     let mut rules = vec![
-        (
-            "email".into(),
-            Regex::new(r"(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}").unwrap(),
-        ),
-        (
-            "bearer token".into(),
-            Regex::new(r"(?i)(bearer\s+)[A-Za-z0-9._~+/=-]{12,}").unwrap(),
-        ),
-        (
-            "secret field".into(),
-            Regex::new(&format!(
-                r#"(?i)((?:"{secret_field}"|\b{secret_field}\b)\s*[=:]\s*["']?)[^\s,"'}}]+"#
+        RedactionRule {
+            label: "email".into(),
+            expression: Regex::new(r"(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}").unwrap(),
+            preserve_prefix: false,
+        },
+        RedactionRule {
+            label: "bearer token".into(),
+            expression: Regex::new(r"(?i)(bearer\s+)[^\s,;]+").unwrap(),
+            preserve_prefix: true,
+        },
+        RedactionRule {
+            label: "secret field".into(),
+            expression: Regex::new(&format!(
+                r#"(?i)((?:"{secret_field}"|\b{secret_field}\b)\s*[=:]\s*)(?:"[^"]*"|'[^']*'|[^\s,"'}}]+)"#
             ))
             .unwrap(),
-        ),
-        (
-            "AWS access key ID".into(),
-            Regex::new(r"(?i)(?:AKIA|ASIA)[0-9A-Z]{16}").unwrap(),
-        ),
+            preserve_prefix: true,
+        },
+        RedactionRule {
+            label: "AWS access key ID".into(),
+            expression: Regex::new(r"(?i)(?:AKIA|ASIA)[0-9A-Z]{16}").unwrap(),
+            preserve_prefix: false,
+        },
     ];
     if let Some(path) = path {
         for (line_no, line) in fs::read_to_string(path)?.lines().enumerate() {
@@ -348,31 +358,37 @@ fn redaction_rules(path: Option<&std::path::Path>) -> Result<Vec<(String, Regex)
                     line_no + 1
                 )
             })?;
-            rules.push((
-                label.trim().to_string(),
-                Regex::new(expression.trim()).with_context(|| {
+            rules.push(RedactionRule {
+                label: label.trim().to_string(),
+                expression: Regex::new(expression.trim()).with_context(|| {
                     format!(
                         "invalid redaction rule at {}:{}",
                         path.display(),
                         line_no + 1
                     )
                 })?,
-            ));
+                preserve_prefix: false,
+            });
         }
     }
     Ok(rules)
 }
 
-fn redact(text: &str, rules: &[(String, Regex)]) -> String {
-    rules.iter().fold(text.to_string(), |value, (label, rule)| {
-        rule.replace_all(&value, |captures: &regex::Captures| {
-            let prefix = captures
-                .get(1)
-                .map(|matched| matched.as_str())
-                .unwrap_or("");
-            format!("{prefix}[REDACTED:{}]", label.to_uppercase())
-        })
-        .into_owned()
+fn redact(text: &str, rules: &[RedactionRule]) -> String {
+    rules.iter().fold(text.to_string(), |value, rule| {
+        rule.expression
+            .replace_all(&value, |captures: &regex::Captures| {
+                let prefix = if rule.preserve_prefix {
+                    captures
+                        .get(1)
+                        .map(|matched| matched.as_str())
+                        .unwrap_or("")
+                } else {
+                    ""
+                };
+                format!("{prefix}[REDACTED:{}]", rule.label.to_uppercase())
+            })
+            .into_owned()
     })
 }
 fn hash(bytes: &[u8]) -> String {
@@ -386,7 +402,7 @@ fn render_html(bundle: &Bundle<'_>) -> Result<String> {
     let data = serde_json::to_string(bundle)?.replace('<', "\\u003c");
     let nonce = &hash(data.as_bytes())[..24];
     Ok(format!(
-        r#"<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-{nonce}'; base-uri 'none'; form-action 'none'"><title>{}</title><style>*{{box-sizing:border-box}}body{{margin:0;background:#f6f0df;color:#17211f;font:16px Georgia,serif}}main{{max-width:1100px;margin:auto;padding:32px 20px;min-width:0}}header{{border-bottom:4px solid #17211f;padding-bottom:20px}}h1{{font-size:clamp(2rem,5vw,4rem);margin:.2em 0}}section{{min-width:0}}.stamp{{font:700 13px ui-monospace,monospace;letter-spacing:.08em;color:#b7432e}}.warning{{background:#fff1bd;border-left:6px solid #835400;padding:12px 16px}}.controls{{display:flex;gap:12px;flex-wrap:wrap;margin:24px 0}}input,button{{min-height:44px;border:2px solid #17211f;padding:8px 12px;font:inherit}}button{{background:#b7432e;color:#fff;font-weight:bold;cursor:pointer}}button:focus,input:focus{{outline:3px solid #29654c;outline-offset:3px}}table{{width:100%;border-collapse:collapse;font:13px ui-monospace,monospace;background:#132329;color:#f7f2e5}}th,td{{padding:10px;text-align:left;vertical-align:top;border-bottom:1px solid #42605e;overflow-wrap:anywhere}}th{{color:#f6d083}}.meta{{font:14px ui-monospace,monospace;overflow-wrap:anywhere}}#sources{{padding-left:24px}}#sources li{{max-width:100%;overflow-wrap:anywhere}}#sources code{{word-break:break-all}}@media(max-width:640px){{main{{padding:20px 12px}}th:nth-child(2),td:nth-child(2){{display:none}}}}</style></head><body><main><header><p class="stamp">LOCAL INCIDENT ARTIFACT · REVIEW COPY</p><h1>{}</h1><p>{}</p></header><p class="warning">{}</p><section aria-labelledby="evidence"><div class="controls"><label>Search evidence <input id="search" type="search" autofocus></label><button id="csv">Download CSV</button></div><h2 id="evidence">Evidence (<span id="count"></span> records)</h2><table><thead><tr><th>Time</th><th>Source</th><th>Line</th><th>Record</th></tr></thead><tbody id="rows"></tbody></table></section><section><h2>Provenance</h2><p class="meta">Redaction rules: {}</p><ul id="sources"></ul></section></main><script id="bundle-data" type="application/json">{data}</script><script nonce="{nonce}">const B=JSON.parse(document.querySelector('#bundle-data').textContent);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}}[c]));const search=document.querySelector('#search'),csv=document.querySelector('#csv'),rows=document.querySelector('#rows'),count=document.querySelector('#count');function show(){{const q=search.value.toLowerCase(),a=B.records.filter(r=>Object.values(r).join(' ').toLowerCase().includes(q));count.textContent=a.length;rows.innerHTML=a.map(r=>`<tr><td>${{esc(r.timestamp||'No timestamp')}}</td><td>${{esc(r.source)}}</td><td>${{r.line}}</td><td>${{esc(r.text)}}</td></tr>`).join('')}}search.addEventListener('input',show);csv.addEventListener('click',()=>{{const line=r=>[r.timestamp||'',r.source,r.line,r.text].map(x=>'"'+String(x).replaceAll('"','""')+'"').join(',');const blob=new Blob([['timestamp,source,line,text',...B.records.map(line)].join('\n')],{{type:'text/csv'}});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='incident-records.csv';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0)}});document.querySelector('#sources').innerHTML=B.sources.map(s=>`<li><code>${{esc(s.name)}}</code> — ${{s.lines}} lines — SHA-256 <code>${{s.sha256}}</code></li>`).join('');show();</script></body></html>"#,
+        r#"<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-{nonce}'; base-uri 'none'; form-action 'none'"><title>{}</title><style>*{{box-sizing:border-box}}body{{margin:0;background:#f6f0df;color:#17211f;font:16px Georgia,serif}}main{{max-width:1100px;margin:auto;padding:32px 20px;min-width:0}}header{{border-bottom:4px solid #17211f;padding-bottom:20px}}h1{{font-size:clamp(2rem,5vw,4rem);margin:.2em 0}}section{{min-width:0}}.stamp{{font:700 13px ui-monospace,monospace;letter-spacing:.08em;color:#b7432e}}.warning{{background:#fff1bd;border-left:6px solid #835400;padding:12px 16px}}.controls{{display:flex;gap:12px;flex-wrap:wrap;margin:24px 0}}input,button{{min-height:44px;border:2px solid #17211f;padding:8px 12px;font:inherit}}button{{background:#b7432e;color:#fff;font-weight:bold;cursor:pointer}}button:focus,input:focus{{outline:3px solid #29654c;outline-offset:3px}}table{{width:100%;border-collapse:collapse;font:13px ui-monospace,monospace;background:#132329;color:#f7f2e5}}th,td{{padding:10px;text-align:left;vertical-align:top;border-bottom:1px solid #42605e;overflow-wrap:anywhere}}th{{color:#f6d083}}.meta{{font:14px ui-monospace,monospace;overflow-wrap:anywhere}}#empty{{margin:16px 0;padding:12px 16px;background:#fff1bd;border-left:6px solid #835400}}#sources{{padding-left:24px}}#sources li{{max-width:100%;overflow-wrap:anywhere}}#sources code{{word-break:break-all}}@media(max-width:640px){{main{{padding:20px 12px}}th:nth-child(2),td:nth-child(2){{display:none}}}}</style></head><body><main><header><p class="stamp">LOCAL INCIDENT ARTIFACT · REVIEW COPY</p><h1>{}</h1><p>{}</p></header><p class="warning">{}</p><section aria-labelledby="evidence"><div class="controls"><label>Search evidence <input id="search" type="search" autofocus></label><button id="csv">Download CSV</button></div><h2 id="evidence">Evidence (<span id="count"></span> records)</h2><p id="empty" role="status" hidden></p><table><thead><tr><th>Time</th><th>Source</th><th>Line</th><th>Record</th></tr></thead><tbody id="rows"></tbody></table></section><section><h2>Provenance</h2><p class="meta">Redaction rules: {}</p><ul id="sources"></ul></section></main><script id="bundle-data" type="application/json">{data}</script><script nonce="{nonce}">const B=JSON.parse(document.querySelector('#bundle-data').textContent);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}}[c]));const search=document.querySelector('#search'),csv=document.querySelector('#csv'),rows=document.querySelector('#rows'),count=document.querySelector('#count'),empty=document.querySelector('#empty');function show(){{const q=search.value.toLowerCase(),a=B.records.filter(r=>Object.values(r).join(' ').toLowerCase().includes(q));count.textContent=a.length;rows.innerHTML=a.map(r=>`<tr><td>${{esc(r.timestamp||'No timestamp')}}</td><td>${{esc(r.source)}}</td><td>${{r.line}}</td><td>${{esc(r.text)}}</td></tr>`).join('');empty.hidden=a.length>0;if(!a.length)empty.textContent=B.records.length?'No evidence matches this search. Clear the search to see every record.':'No records matched the selected time bounds. Widen or remove --from or --to, then generate a new review.'}}search.addEventListener('input',show);csv.addEventListener('click',()=>{{const line=r=>[r.timestamp||'',r.source,r.line,r.text].map(x=>'"'+String(x).replaceAll('"','""')+'"').join(',');const blob=new Blob([['timestamp,source,line,text',...B.records.map(line)].join('\n')],{{type:'text/csv'}});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='incident-records.csv';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0)}});document.querySelector('#sources').innerHTML=B.sources.map(s=>`<li><code>${{esc(s.name)}}</code> — ${{s.lines}} lines — SHA-256 <code>${{s.sha256}}</code></li>`).join('');show();</script></body></html>"#,
         html_escape(bundle.title),
         html_escape(bundle.title),
         html_escape(bundle.question),
@@ -409,12 +425,15 @@ mod tests {
     #[test]
     fn redacts_default_secrets() {
         let rules = redaction_rules(None).unwrap();
-        let input = "email=dev@example.com authorization=Bearer abcdefghijklmnop secret=shh token=plain-secret-value \"apiKey\":\"json-key-value\" \"password\":\"json-password-value\" \"access_token\":\"json-token-value\" permanent=AKIA1234567890ABCDEF temporary=ASIA1234567890ABCDEF";
+        let input = "email=dev@example.com authorization=Bearer short123 token=\"two word secret\" password=\"correct horse battery staple\" api_key=abc access_token=xy \"apiKey\":\"json-key-value\" \"password\":\"json-password-value\" \"access_token\":\"json-token-value\" permanent=AKIA1234567890ABCDEF temporary=ASIA1234567890ABCDEF";
         let output = redact(input, &rules);
         for secret in [
             "dev@example.com",
-            "abcdefghijklmnop",
-            "secret=shh",
+            "short123",
+            "two word secret",
+            "correct horse battery staple",
+            "abc",
+            "xy",
             "json-key-value",
             "json-password-value",
             "json-token-value",
@@ -424,6 +443,18 @@ mod tests {
         ] {
             assert!(!output.contains(secret), "{secret} was not redacted");
         }
+    }
+
+    #[test]
+    fn custom_capture_groups_do_not_preserve_a_secret() {
+        let rules = vec![RedactionRule {
+            label: "customer id".into(),
+            expression: Regex::new(r"customer_id=([A-Za-z0-9_-]+)").unwrap(),
+            preserve_prefix: false,
+        }];
+        let output = redact("customer_id=cust_private_73", &rules);
+        assert!(!output.contains("cust_private_73"));
+        assert_eq!(output, "[REDACTED:CUSTOMER ID]");
     }
 
     #[test]
