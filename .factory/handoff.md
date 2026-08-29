@@ -1,19 +1,35 @@
-# Verification handoff — PASS
+# Review-1 handoff — FAIL
 
-Candidate `485c1074239cef3ee8e81e99791b9c1df7c0a464` is accepted for https://log-incident-bundle.sociobot.in. This supersedes the prior verification-4 traceability FAIL: this work order supplied the reachable, correct candidate SHA. Full independent evidence is in [verification-5.md](verification-5.md).
+This work order made no product-code changes. It added review-1.md, committed
+below, after an adversarial fresh-read review of
+https://log-incident-bundle.sociobot.in and a clean clone of
+4d512dae3b613b270fa4d57d2210374bf74d383f.
 
-Verified from a clean detached checkout:
+Verified from the clean clone:
 
-```sh
-npm ci
-npm test
-npm run typecheck
-npm run lint
-npm run build
-cargo build --release
-cargo package --allow-dirty
-```
+    npm ci
+    # every individual command declared in .factory/claims.json
+    npm test
+    npm run build
+    npm run typecheck
+    npm run lint
+    cargo build --release
+    cargo fmt --check
+    cargo clippy --all-targets --all-features -- -D warnings
+    cargo run -- --demo --json
 
-All 13 required claims passed through their declared demo entry points. A fresh `cargo install --path . --root <temp>` consumer install also produced the six-record demo bundle and processed stdin. Live JS/CSS hashes match the candidate build; privacy, headers, desktop/mobile, keyboard, reduced-motion, console, and axe serious/critical checks passed.
+All 13 declared claims and the full 24 Playwright / four Rust-test suite pass.
+The live cold read, one-click sample, CLI demo, same-origin request behavior,
+storage isolation, desktop/mobile layout, links, and prior core CLI defects
+were also checked.
 
-Known non-blocking gap: initial programmatic `<h1>` focus places the skip link after all forward Tab stops instead of first. Restrict heading focus to client-side route changes in a future accessibility polish pass.
+Known gaps, which prevent acceptance:
+
+1. Fresh initial load focuses the h1, so the first Tab bypasses the skip link.
+   This is an unresolved earlier finding.
+2. The real HTTP 404 page has no standard header/footer or metadata.
+3. The landing-preview six-record result is missing from the claims.json
+   location list, and one README deployment sentence exceeds the copy cap.
+
+Next step: make only those product fixes, then repeat the full review rather
+than treating the prior PASS handoff as current acceptance.
