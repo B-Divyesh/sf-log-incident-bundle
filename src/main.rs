@@ -5,7 +5,7 @@ use regex::Regex;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     fs::{self, OpenOptions},
     io::{self, Read, Write},
     path::{Path, PathBuf},
@@ -98,13 +98,7 @@ fn main() -> Result<()> {
         cli.to.as_deref(),
         &cli.correlate,
     )?;
-    let redacted: Vec<Record> = bounded
-        .into_iter()
-        .map(|mut record| {
-            record.text = redact(&record.text, &rules);
-            record
-        })
-        .collect();
+    let redacted = redact_selected_records(bounded, &contents, &rules);
     let labels = rules.iter().map(|rule| rule.label.clone()).collect();
     let bundle = Bundle {
         title: &cli.title,
@@ -137,19 +131,14 @@ fn run_demo(json: bool) -> Result<()> {
     let sample = include_str!("../examples/payment-api.log");
     let output = create_demo_directory()?.join("review.html");
     let rules = redaction_rules(None)?;
+    let contents = vec![("payment-api.log".into(), sample.into())];
     let records = bound_and_correlate(
-        parse_records(&[("payment-api.log".into(), sample.into())]),
+        parse_records(&contents),
         Some("2026-08-22T14:01:00Z"),
         Some("2026-08-22T14:02:00Z"),
         &["trace_id".into()],
     )?;
-    let redacted = records
-        .into_iter()
-        .map(|mut record| {
-            record.text = redact(&record.text, &rules);
-            record
-        })
-        .collect();
+    let redacted = redact_selected_records(records, &contents, &rules);
     let source = Source {
         name: "payment-api.log".into(),
         sha256: hash(sample.as_bytes()),
@@ -290,6 +279,7 @@ struct RedactionRule {
     label: String,
     expression: Regex,
     preserve_prefix: bool,
+    preserve_line_breaks: bool,
 }
 
 fn read_sources(files: &[PathBuf]) -> Result<(SourceContents, Vec<Source>)> {
@@ -338,6 +328,38 @@ fn parse_records(contents: &[(String, String)]) -> Vec<Record> {
                 line: index + 1,
                 text: line.to_string(),
             })
+        })
+        .collect()
+}
+
+/// Apply rules to complete sources before record text is copied into an artifact.
+///
+/// This keeps the original records available for time bounds and correlation while
+/// allowing a PEM block to be removed even when its body spans multiple log lines.
+/// Replacement keeps the same number of line breaks, so a selected raw record can
+/// safely use the redacted text from its original source and line number.
+fn redact_selected_records(
+    selected: Vec<Record>,
+    contents: &SourceContents,
+    rules: &[RedactionRule],
+) -> Vec<Record> {
+    let redacted_contents: SourceContents = contents
+        .iter()
+        .map(|(name, text)| (name.clone(), redact(text, rules)))
+        .collect();
+    let by_location: BTreeMap<(String, usize), String> = parse_records(&redacted_contents)
+        .into_iter()
+        .map(|record| ((record.source, record.line), record.text))
+        .collect();
+
+    selected
+        .into_iter()
+        .map(|mut record| {
+            record.text = by_location
+                .get(&(record.source.clone(), record.line))
+                .cloned()
+                .unwrap_or_else(|| redact(&record.text, rules));
+            record
         })
         .collect()
 }
@@ -432,27 +454,40 @@ fn redaction_rules(path: Option<&std::path::Path>) -> Result<Vec<RedactionRule>>
     let secret_field = r"[A-Z0-9_-]*(?:password|passwd|pwd|secret|api[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|private[_-]?key|authorization|credentials?|session|cookie|token)[A-Z0-9_-]*";
     let mut rules = vec![
         RedactionRule {
+            label: "private key".into(),
+            expression: Regex::new(
+                r"(?is)-----BEGIN(?: [A-Z0-9]+)* PRIVATE KEY-----.*?-----END(?: [A-Z0-9]+)* PRIVATE KEY-----",
+            )
+            .unwrap(),
+            preserve_prefix: false,
+            preserve_line_breaks: true,
+        },
+        RedactionRule {
             label: "email".into(),
             expression: Regex::new(r"(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}").unwrap(),
             preserve_prefix: false,
+            preserve_line_breaks: false,
         },
         RedactionRule {
             label: "bearer token".into(),
             expression: Regex::new(r"(?i)(bearer\s+)[^\s,;]+").unwrap(),
             preserve_prefix: true,
+            preserve_line_breaks: false,
         },
         RedactionRule {
             label: "secret field".into(),
             expression: Regex::new(&format!(
-                r#"(?i)((?:"{secret_field}"|\b{secret_field}\b)\s*[=:]\s*)(?:"[^"]*"|'[^']*'|[^\s,"'}}]+)"#
+                r#"(?i)((?:"{secret_field}"|\b{secret_field}\b)\s*[=:]\s*)(?:"[^"]*"|'[^']*'|[^\r\n]*)"#
             ))
             .unwrap(),
             preserve_prefix: true,
+            preserve_line_breaks: false,
         },
         RedactionRule {
             label: "AWS access key ID".into(),
             expression: Regex::new(r"(?i)(?:AKIA|ASIA)[0-9A-Z]{16}").unwrap(),
             preserve_prefix: false,
+            preserve_line_breaks: false,
         },
     ];
     if let Some(path) = path {
@@ -477,6 +512,7 @@ fn redaction_rules(path: Option<&std::path::Path>) -> Result<Vec<RedactionRule>>
                     )
                 })?,
                 preserve_prefix: false,
+                preserve_line_breaks: false,
             });
         }
     }
@@ -495,7 +531,22 @@ fn redact(text: &str, rules: &[RedactionRule]) -> String {
                 } else {
                     ""
                 };
-                format!("{prefix}[REDACTED:{}]", rule.label.to_uppercase())
+                let mut replacement = format!("{prefix}[REDACTED:{}]", rule.label.to_uppercase());
+                if rule.preserve_line_breaks {
+                    replacement.extend(
+                        captures
+                            .get(0)
+                            .map(|matched| {
+                                matched
+                                    .as_str()
+                                    .chars()
+                                    .filter(|character| *character == '\n')
+                            })
+                            .into_iter()
+                            .flatten(),
+                    );
+                }
+                replacement
             })
             .into_owned()
     })
@@ -569,10 +620,33 @@ mod tests {
             label: "customer id".into(),
             expression: Regex::new(r"customer_id=([A-Za-z0-9_-]+)").unwrap(),
             preserve_prefix: false,
+            preserve_line_breaks: false,
         }];
         let output = redact("customer_id=cust_private_73", &rules);
         assert!(!output.contains("cust_private_73"));
         assert_eq!(output, "[REDACTED:CUSTOMER ID]");
+    }
+
+    #[test]
+    fn redacts_complete_header_values_and_multiline_private_keys() {
+        let rules = redaction_rules(None).unwrap();
+        let source = "2026-08-22T14:01:01Z Authorization: Basic ZmFjdG9yeXVzZXI6U3VwZXJTZWNyZXQ=\n2026-08-22T14:01:02Z Cookie: session=cookie_secret_one; csrf=cookie_secret_two\n2026-08-22T14:01:03Z private_key=-----BEGIN PRIVATE KEY-----\nMIIE_private_key_body_should_not_survive\n-----END PRIVATE KEY-----\n2026-08-22T14:01:04Z credentials=credential_password_should_not_survive\n";
+        let output = redact(source, &rules);
+
+        for secret in [
+            "ZmFjdG9yeXVzZXI6U3VwZXJTZWNyZXQ=",
+            "cookie_secret_one",
+            "cookie_secret_two",
+            "MIIE_private_key_body_should_not_survive",
+            "credential_password_should_not_survive",
+        ] {
+            assert!(!output.contains(secret), "{secret} was not redacted");
+        }
+        assert_eq!(source.lines().count(), output.lines().count());
+        assert!(output.contains("Authorization: [REDACTED:SECRET FIELD]"));
+        assert!(output.contains("Cookie: [REDACTED:SECRET FIELD]"));
+        assert!(output.contains("private_key=[REDACTED:SECRET FIELD]"));
+        assert!(output.contains("credentials=[REDACTED:SECRET FIELD]"));
     }
 
     #[test]

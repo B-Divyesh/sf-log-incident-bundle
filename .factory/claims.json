@@ -77,6 +77,13 @@
     "sandbox": "place a hostile symlink at the legacy shared path; run --demo twice with an isolated temporary root; assert unique private directories, unchanged victim bytes, and a working generated artifact"
   },
   {
+    "id": "terminal-recording",
+    "claim": "The landing page ships a self-hosted terminal recording captured from the packaged CLI demo.",
+    "where": "landing terminal recording, README demo section",
+    "test": "npm test -- --grep @claim:terminal-recording",
+    "sandbox": "generate the recording from a freshly cargo-packaged and installed CLI demo; assert byte equality with the shipped SVG and load it from the landing page"
+  },
+  {
     "id": "finite-review",
     "claim": "The CLI creates a finite review copy, not a live log service.",
     "where": "landing scope, README scope",

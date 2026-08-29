@@ -214,23 +214,36 @@ h2 {
   max-width: 18ch;
   margin: 0.15em 0 0.6em;
 }
-.terminal {
+.terminal-recording {
   max-width: 740px;
-  padding: 20px 24px;
-  border: var(--rule);
-  background: var(--night);
-  color: var(--night-ink);
-  font:
-    13px/1.55 ui-monospace,
-    monospace;
-  overflow: auto;
-}
-.terminal p {
   margin: 0;
 }
-.terminal span,
-.terminal-result {
-  color: #f6d083;
+.terminal-recording img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: var(--rule);
+}
+.terminal-recording figcaption {
+  margin-top: 10px;
+  font-size: 15px;
+}
+.terminal-recording details {
+  margin-top: 10px;
+}
+.terminal-recording summary {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: bold;
+}
+.terminal-recording pre {
+  overflow: auto;
+  padding: 14px;
+  background: var(--night);
+  color: var(--night-ink);
+  font: 13px/1.55 ui-monospace, monospace;
 }
 .process ol {
   display: grid;

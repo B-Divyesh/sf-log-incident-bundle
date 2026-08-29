@@ -61,6 +61,8 @@ values for that field inside the window, then adds other matching records.
 The default rules replace email addresses, bearer tokens, and common secret
 fields. This includes OAuth tokens, authorization, credentials, sessions,
 cookies, private keys, and AWS access-key IDs beginning with `AKIA` or `ASIA`.
+For unquoted secret fields, it removes the rest of that line. It also removes
+complete PEM private-key blocks across multiple lines.
 Add reviewable local rules with a plain text file:
 
 ```text
@@ -89,6 +91,13 @@ review copy built from
 [`examples/payment-api.log`](examples/payment-api.log). The browser version is
 at `/?demo=1` or `/demo`. It uses six fixed sample records in memory and writes
 no demo data to browser storage.
+
+The landing page includes a self-hosted terminal recording from the packaged
+`--demo` command. Refresh it after changing the demo with:
+
+```sh
+npm run record:demo
+```
 
 ## Develop and verify
 

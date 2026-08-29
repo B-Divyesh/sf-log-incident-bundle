@@ -1,7 +1,7 @@
 {
   "name": "log-incident-bundle-site",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.1.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,6 +11,7 @@
     "test:unit": "cargo test",
     "test:e2e": "node scripts/test.mjs --skip-rust",
     "test:harness": "node scripts/test-lifecycle.mjs",
+    "record:demo": "node scripts/record-terminal-demo.mjs",
     "verify:url": "./verify-url.sh",
     "typecheck": "tsc --noEmit",
     "lint": "npm run typecheck",

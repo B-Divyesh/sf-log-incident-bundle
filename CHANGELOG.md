@@ -1,7 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.1.3 — 2026-08-29
 
+- Redact complete unquoted authorization, credential, and cookie values, plus
+  multiline PEM private-key blocks, before a generated artifact receives record
+  text.
+- Add the verifier's representative Basic authorization, multi-cookie,
+  PEM-body, and trailing-credential regression coverage.
+- Replace the landing-page terminal snippet with a self-hosted SVG recording
+  generated from a cargo-packaged and freshly installed CLI demo.
 - Give each browser-test invocation its own temporary site build and preview
   port so independently run claim commands cannot lose a shared server.
 - Add a concurrent regression for the three site claim commands that exposed

@@ -15,6 +15,8 @@ Sentence counts use whitespace-separated words. No landing sentence exceeds
 | No account or purchase. | 4 | pass |
 | A print-style view of the generated review copy. | 8 | pass |
 | Search and export the review copy | 6 | pass |
+| Recorded from the packaged `log-incident-bundle --demo` command. | 6 | pass |
+| Read the terminal transcript | 4 | pass |
 | Open the working sample review | 5 | pass |
 | Make an incident review copy | 5 | pass |
 | Choose the time window. | 4 | pass |
@@ -38,6 +40,10 @@ Sentence counts use whitespace-separated words. No landing sentence exceeds
 | Run `npm run build:site` to create it. | 6 | pass |
 | The deployment config adds security headers, route rewrites, a 404 page, and cache rules for hashed assets. | 16 | pass |
 | Push an approved commit to `main` for the factory deployment. | 10 | pass |
+| The landing page includes a self-hosted terminal recording from the packaged `--demo` command. | 13 | pass |
+| Refresh it after changing the demo with: | 8 | pass |
+| For unquoted secret fields, it removes the rest of that line. | 11 | pass |
+| It also removes complete PEM private-key blocks across multiple lines. | 10 | pass |
 
 All other README prose was rechecked against the review-1 audit. No sentence
 exceeds 22 words or uses a banned marketing word.

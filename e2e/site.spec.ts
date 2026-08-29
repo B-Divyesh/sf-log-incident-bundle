@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import axe from 'axe-core';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { link, lstat, mkdtemp, readFile, symlink, writeFile } from 'node:fs/promises';
+import { link, lstat, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -112,18 +112,54 @@ test('@claim:portable-html generated bundle renders, searches, exports, and show
 });
 
 test('@claim:default-redaction generated bundles redact every named default category', async ({ page }) => {
-  const input = '2026-08-22T14:01:01Z credential=ASIA1234567890ABCDEF authorization=Bearer short123 token="two word secret" password="correct horse battery staple" api_key=abc access_token=xy client_secret=clientSecretValue refresh_token=refreshTokenValue id_token=idTokenValue private_key=privateKeyValue authorization="Basic basicCredentialValue" session=sessionValue cookie=cookieValue oauth_client_secret=oauthSecretValue password_hash=passwordHashValue {"apiKey":"json-key-value","password":"json-password-value","access_token":"json-token-value","refreshToken":"jsonRefreshValue","email":"dev@example.com","aws":"AKIA1234567890ABCDEF"}';
+  const input = [
+    '2026-08-22T14:01:01Z credential=ASIA1234567890ABCDEF authorization=Bearer short123 token="two word secret" password="correct horse battery staple" api_key=abc access_token=xy client_secret=clientSecretValue refresh_token=refreshTokenValue id_token=idTokenValue private_key=privateKeyValue authorization="Basic basicCredentialValue" session=sessionValue cookie=cookieValue oauth_client_secret=oauthSecretValue password_hash=passwordHashValue {"apiKey":"json-key-value","password":"json-password-value","access_token":"json-token-value","refreshToken":"jsonRefreshValue","email":"dev@example.com"}',
+    '2026-08-22T14:01:01Z token=unquoted_token_value',
+    '2026-08-22T14:01:01Z aws=AKIA1234567890ABCDEF',
+    '2026-08-22T14:01:02Z Authorization: Basic ZmFjdG9yeXVzZXI6U3VwZXJTZWNyZXQ=',
+    '2026-08-22T14:01:03Z Cookie: session=cookie_secret_one; csrf=cookie_secret_two',
+    '2026-08-22T14:01:04Z private_key=-----BEGIN PRIVATE KEY-----',
+    'MIIE_private_key_body_should_not_survive',
+    '-----END PRIVATE KEY-----',
+    '2026-08-22T14:01:05Z credentials=credential_password_should_not_survive'
+  ].join('\n');
   const bundle = await makeBundle(input);
   await page.goto(bundle.url);
   const body = await page.locator('body').innerText();
   const html = await readFile(bundle.output, 'utf8');
-  for (const secret of ['ASIA1234567890ABCDEF', 'short123', 'two word secret', 'correct horse battery staple', 'abc', 'xy', 'clientSecretValue', 'refreshTokenValue', 'idTokenValue', 'privateKeyValue', 'basicCredentialValue', 'sessionValue', 'cookieValue', 'oauthSecretValue', 'passwordHashValue', 'json-key-value', 'json-password-value', 'json-token-value', 'jsonRefreshValue', 'dev@example.com', 'AKIA1234567890ABCDEF']) {
+  for (const secret of ['ASIA1234567890ABCDEF', 'short123', 'two word secret', 'correct horse battery staple', 'abc', 'xy', 'clientSecretValue', 'refreshTokenValue', 'idTokenValue', 'privateKeyValue', 'basicCredentialValue', 'sessionValue', 'cookieValue', 'oauthSecretValue', 'passwordHashValue', 'json-key-value', 'json-password-value', 'json-token-value', 'jsonRefreshValue', 'dev@example.com', 'unquoted_token_value', 'AKIA1234567890ABCDEF', 'ZmFjdG9yeXVzZXI6U3VwZXJTZWNyZXQ=', 'cookie_secret_one', 'cookie_secret_two', 'MIIE_private_key_body_should_not_survive', 'credential_password_should_not_survive']) {
     expect(body).not.toContain(secret);
     expect(html).not.toContain(secret);
   }
   await expect(page.locator('#rows')).toContainText('[REDACTED:AWS ACCESS KEY ID]');
   await expect(page.locator('#rows')).toContainText('token=[REDACTED:SECRET FIELD]');
-  await expect(page.locator('#rows tr')).toHaveCount(1);
+  await expect(page.locator('#rows')).toContainText('Authorization: [REDACTED:SECRET FIELD]');
+  await expect(page.locator('#rows')).toContainText('Cookie: [REDACTED:SECRET FIELD]');
+  await expect(page.locator('#rows')).toContainText('private_key=[REDACTED:SECRET FIELD]');
+  await expect(page.locator('#rows')).toContainText('credentials=[REDACTED:SECRET FIELD]');
+  await expect(page.locator('#rows tr')).toHaveCount(9);
+});
+
+test('@claim:terminal-recording landing ships the self-hosted recording from the packaged CLI demo', async ({ page }, testInfo) => {
+  testInfo.setTimeout(180_000);
+  const directory = await mkdtemp(join(tmpdir(), 'log-incident-bundle-terminal-recording-'));
+  const generated = join(directory, 'terminal-recording.svg');
+  try {
+    execFileSync(process.execPath, [join(root, 'scripts/record-terminal-demo.mjs'), '--output', generated], {
+      cwd: root,
+      stdio: 'pipe',
+      timeout: 120_000
+    });
+    expect(await readFile(join(root, 'public/terminal-recording.svg'), 'utf8')).toBe(await readFile(generated, 'utf8'));
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+
+  await page.goto('/');
+  const recording = page.locator('img[src="/terminal-recording.svg"]');
+  await expect(recording).toHaveAttribute('alt', /packaged Log Incident Bundle demo/);
+  await expect(page.getByText('Recorded from the packaged')).toBeVisible();
+  await expect(page.getByText('Read the terminal transcript')).toBeVisible();
 });
 
 test('@claim:output-safety CLI refuses output aliases and existing files without changing them', async () => {

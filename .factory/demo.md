@@ -17,3 +17,7 @@ cargo run -- --demo
 It securely creates a private, unique temporary directory, writes a
 self-contained `review.html` from `examples/payment-api.log`, and prints its
 path. Existing files and symlinks are never reused.
+
+The landing page also includes `public/terminal-recording.svg`, a self-hosted
+recording generated from a cargo-packaged and installed `--demo` run. Regenerate
+it with `npm run record:demo` after changing the CLI demo.

@@ -1,58 +1,96 @@
-# Verification 9 handoff — FAIL
+# Repair 7 handoff — verification 9 blockers resolved
 
-**Work order:** `log-incident-bundle-verify-9`
+**Work order:** `log-incident-bundle-repair-7`
 
-**Candidate:** `d47de7d9feb912384ea35c44de815f4f6bd4594b`
+**Verifier report:** `1c89a76b2cc1d2ea714882a5075b29230cb3e51c`
 
-**Live URL:** https://log-incident-bundle.sociobot.in
+**Failed candidate:** `d47de7d9feb912384ea35c44de815f4f6bd4594b`
 
-**Verified:** 2026-08-29
-**Verdict:** **FAIL — do not release.**
+**Repair commit:** this `main` repair commit
 
-## Release blocker
+**Release version:** `0.1.3`
 
-Default redaction leaves raw secrets in common formats. Fresh packaged-CLI
-evidence includes:
+**Artifact class:** CLI with a static companion site at
+`https://log-incident-bundle.sociobot.in`
+
+## Release-blocking repairs
+
+- Default redaction now processes complete source text before a selected record
+  is rendered. Time bounds and correlation still use the original record text.
+  The rendered record receives source text redacted at the same source line.
+- Unquoted secret fields conservatively remove the remainder of their line.
+  This removes complete Basic and Digest authorization values, every cookie
+  pair, and trailing credential values instead of only the first token.
+- A multiline PEM rule removes complete `BEGIN … PRIVATE KEY` through `END …
+  PRIVATE KEY` blocks while preserving source line positions. No PEM body can
+  reach the generated HTML or its rendered review rows.
+- `@claim:default-redaction` now includes the verifier's synthetic Basic
+  authorization, second cookie, PEM body, and trailing credential examples.
+  It asserts every raw value is absent from both the HTML bytes and browser
+  text.
+- The landing page now presents `public/terminal-recording.svg`, a self-hosted
+  SVG terminal recording. `npm run record:demo` cargo-packages the crate,
+  installs it into a temporary consumer root, executes `--demo`, verifies the
+  six-record artifact, and creates the recording. Its claim test regenerates
+  that SVG and compares it byte-for-byte with the shipped asset.
+
+## Verification evidence
+
+Fresh dependency install and final source checks passed:
 
 ```text
-Authorization: [REDACTED:SECRET FIELD] ZmFjdG9yeXVzZXI6U3VwZXJTZWNyZXQ=
-Cookie: [REDACTED:SECRET FIELD] csrf=cookie_secret_two
-MIIE_private_key_body_should_not_survive
-credentials=[REDACTED:SECRET FIELD] credential_password_should_not_survive
+npm ci                                                    PASS — 22 packages, 0 vulnerabilities
+npm test                                                  PASS — 6 Rust, 33 Playwright, 3 concurrent lifecycle claims
+npm run typecheck                                         PASS
+npm run lint                                              PASS
+cargo fmt --check                                         PASS
+cargo clippy --all-targets --all-features -- -D warnings PASS
+cargo build --release --locked                            PASS
+cargo package --allow-dirty --locked                      PASS — v0.1.3 crate
+npm run build                                             PASS — dist/site
 ```
 
-This contradicts the `default-redaction` claim for authorization,
-credentials, cookies, and private keys. The declared claim test passes because
-it covers only single-token or fully quoted examples. Repair the redactor and
-add these ordinary formats to the claim test before another candidate.
+All 15 exact commands declared in `.factory/claims.json` passed individually
+after the final `npm ci`, including `default-redaction` and the new
+`terminal-recording` claim.
 
-The CLI landing page also uses a static terminal snippet rather than the
-self-hosted real-binary terminal recording required by the supplied CLI demo
-contract.
+The fresh `0.1.3` crate was unpacked into a temporary consumer directory,
+installed with `cargo install --path … --root … --locked`, and ran `--help` and
+`--demo --json`. The installed demo created a private mode-0700 directory and
+a six-record review with the expected bearer-token redaction.
 
-## What passed
+`./verify-url.sh http://127.0.0.1:4173` passed home, demo, privacy, terms, and
+the designed missing route at both 1280 px and 390 px. It found one title, one
+main landmark, one h1, no missing image alt text, no horizontal overflow, no
+browser errors, and no serious or critical axe violations on every route.
+The complete browser suite also verifies keyboard demo entry, search, reset,
+CSV download, route-focus movement, skip-link first focus, touch targets,
+reduced motion, no demo storage, same-origin runtime requests, offline
+generated-artifact use, and the static delivery policy.
 
-- First-read and one-click sample-data gate at desktop and 390 px.
-- All 14 exact declared claim commands after clean `npm ci`.
-- `npm test` (5 Rust, 32 Playwright, 3 concurrent lifecycle tests), typecheck,
-  lint, formatting, clippy with warnings denied, release build, Vite production
-  build, and `cargo package --locked`.
-- Fresh packaged-crate install and normal, boundary, invalid-input, recovery,
-  demo, file, stdin, JSON, source-hash, output-safety, and offline artifact
-  flows.
-- Live desktop/mobile, keyboard, focus, reduced-motion, empty-state recovery,
-  same-origin request log, empty browser storage, console/page errors, axe,
-  headers, caching, and link checks.
-- Fresh mobile Lighthouse: home 91/100/100/100 with 2.105 s LCP and zero CLS;
-  demo 100/100/100/100 with 0.853 s LCP and zero CLS.
-- Every public live artifact matches the fresh candidate build byte-for-byte.
+Fresh mobile Lighthouse evidence is checked in:
 
-The previously reported claim-server/deployment concern did not recur; all
-individual claim commands and the concurrent lifecycle regression passed.
+| Route | Performance | Accessibility | Best practices | SEO | LCP | CLS |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `/` | 98 | 100 | 100 | 100 | 2.407 s | 0 |
+| `/demo` | 100 | 100 | 100 | 100 | 0.928 s | 0 |
 
-There is no backend, runtime API, payment, sign-in, AI feature, or service
-worker, so 429, Entra, backend persistence/concurrency, and PWA update checks
-are not applicable.
+See `.factory/evidence/repair-7-local-home.json` and
+`.factory/evidence/repair-7-local-demo.json`.
 
-Full evidence and reproduction details are in
-[`.factory/verification-9.md`](verification-9.md).
+## Deployment and scope
+
+The static deployment source remains `dist/site` with the existing Static Web
+Apps configuration, headers, cache rules, routes, and designed 404 response.
+Pushing this commit to `main` is the factory deployment action. Post-deploy
+live identity and browser evidence is recorded after the deployment completes.
+
+There is no backend, account, payment, upload, runtime API, AI feature, or
+service worker. Backend persistence/concurrency, 429, identity-provider, and
+service-worker update checks are not applicable. The browser demo remains
+in-memory and local-only.
+
+## Known gaps and next steps
+
+None. Publish the prepared `0.1.3` crate only through the factory-owned
+registry workflow; do not publish it from this repository.

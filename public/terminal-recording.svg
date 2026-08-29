@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 250" width="1120" height="250" role="img" aria-labelledby="title description" data-recording-source="packaged-cli-demo" data-cli-version="0.1.3">
+  <title id="title">Terminal recording of the packaged Log Incident Bundle demo</title>
+  <desc id="description">A self-hosted terminal recording generated from the cargo-packaged and installed CLI demo command.</desc>
+  <style>.shell{fill:#132329}.bar{fill:#1e373a}.label{fill:#f6d083;font:700 14px ui-monospace,monospace;letter-spacing:1.4px}.command{fill:#f7f2e5;font:18px ui-monospace,monospace}.output{fill:#8fd0ac;font:16px ui-monospace,monospace}</style>
+  <rect class="shell" width="1120" height="250" rx="0"/>
+  <rect class="bar" width="1120" height="48"/>
+  <circle cx="28" cy="24" r="7" fill="#b7432e"/><circle cx="52" cy="24" r="7" fill="#f6d083"/><circle cx="76" cy="24" r="7" fill="#8fd0ac"/>
+  <text x="108" y="29" class="label">PACKAGED CLI DEMO · RECORDED OUTPUT</text>
+  <text x="64" y="126" class="command">$ log-incident-bundle --demo</text>
+  <text x="64" y="180" class="output">Demo bundle written to $TMPDIR/log-incident-bundle-demo-&lt;unique&gt;/review.html</text>
+</svg>
