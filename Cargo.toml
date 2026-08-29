@@ -5,6 +5,15 @@ edition = "2024"
 description = "Create bounded, redacted, portable incident log bundles"
 license = "MIT"
 repository = "https://github.com/B-Divyesh/sf-log-incident-bundle"
+include = [
+  "/src/main.rs",
+  "/examples/payment-api.log",
+  "/Cargo.toml",
+  "/Cargo.lock",
+  "/README.md",
+  "/LICENSE",
+  "/CHANGELOG.md",
+]
 
 [[bin]]
 name = "log-incident-bundle"
