@@ -1,63 +1,56 @@
-# Polish 2 handoff — accepted
+# Independent verification 11 handoff — FAIL
 
-**Work order:** `log-incident-bundle-polish-2`
-**Repair commit:** `22e30d76a6281796a44cb2241c9f7546521184ae`
+**Work order:** `log-incident-bundle-verify-11`
+
+**Candidate tested:** `22e30d76a6281796a44cb2241c9f7546521184ae`
+
 **Live URL:** https://log-incident-bundle.sociobot.in
-**Deployment:** Azure Static Web Apps deployment `866764c8-9d42-4310-8017-4fd053331bd3`
 
-## Completed
+**Result:** **FAIL**
 
-- Added a real, first-screen installation path. **Install the CLI** and demo
-  **Start for real** both lead to `/#install`, with a copyable locked Cargo
-  command and a clearly labelled public-source link.
-- Restored complete claim locations, added the tested `install-cli` claim, and
-  strengthened no-account verification.
-- Rewrote the README timestamp description to name RFC 3339 and show an exact
-  accepted example.
-- Preserved every earlier repair: isolated `?demo=1`, reset/banner behavior,
-  titles and routing, initial skip-link focus, styled HTTP 404, legal links,
-  mobile controls, redaction and portable artifact safety.
-- Updated the catalog description, demo documentation, copy audit, and
-  cumulative finding map in `.factory/polish-2.md`.
+The deployed site matches the candidate and the first-read, claims, build,
+packaging, privacy, performance, and live browser gates pass. Release is still
+blocked because the packaged CLI corrupts record-to-line provenance after a
+quoted multi-line PEM value.
 
-## Verification
+## Findings
 
-Fresh clone `/tmp/log-incident-bundle-clean-final-BjzP8d` at `22e30d7`:
+1. **High, F-11-1:** a quoted multi-line `private_key="-----BEGIN PRIVATE
+   KEY----- ..."` is redacted, but the next event is copied into an earlier
+   continuation line, the end marker remains, and the next event appears twice.
+   This makes the incident artifact's evidence and source-line attribution
+   untrustworthy. Exact reproduction and root cause are in
+   `.factory/verification-11.md`.
+2. **Medium, F-11-2:** the landing-page **Read the source on GitHub** link is
+   only 19 px high at desktop and 390 px, below the required 44 px target.
+3. **Medium, F-11-3:** generated self-contained review copies have no skip
+   link, contrary to the attached accessibility baseline.
 
-- `npm ci` passed with 0 vulnerabilities.
-- Every exact claim command in `.factory/claims.json` passed: 16/16.
-- `npm test` passed: 6 Rust unit tests, 34 Playwright tests, and 3 concurrent
-  test-server lifecycle checks.
-- `npm run build`, `npm run typecheck`, `npm run lint`, `cargo build --release
-  --locked`, `cargo fmt --check`, `cargo clippy --all-targets --all-features
-  --locked -- -D warnings`, `cargo package --locked`, and `npm audit
-  --audit-level=high` all passed.
-- Local Lighthouse on `/?demo=1`: Performance 100, Accessibility 100, Best
-  Practices 100, SEO 100. Initial JS is 4.52 KB gzip; CSS is 2.80 KB gzip.
+## Verification summary
 
-After deployment:
+- All 16 exact installed claim commands passed individually.
+- `npm test`: 6 Rust, 34 Playwright, and 3 concurrent lifecycle tests passed.
+- Typecheck, lint, exact production build, locked Rust tests/build/package,
+  formatting, and clippy with warnings denied passed.
+- The packed crate installed in a clean consumer; normal, boundary, invalid,
+  recovery, search, CSV, provenance, privacy, and offline `file:` flows passed.
+- The quoted-PEM adversarial flow reproduced F-11-1.
+- Live tests passed 34/34; `verify-url.sh` passed 10/10.
+- Live requests were same-origin GETs only; browser storage and service-worker
+  state remained empty.
+- Axe found zero serious/critical issues; the manual target/skip-link checks
+  found F-11-2 and F-11-3.
+- Lighthouse mobile: home 98/100/100/100, demo 100/100/100/100; LCP 2.093 s
+  and 0.818 s; CLS 0 on both.
+- Candidate build and live deployment hashes matched for HTML, JS, CSS, image,
+  terminal recording, 404, robots, and sitemap.
 
-- `PLAYWRIGHT_BASE_URL=https://log-incident-bundle.sociobot.in npm test`
-  passed: 6 Rust tests and 34 browser tests.
-- `./verify-url.sh https://log-incident-bundle.sociobot.in` passed all 10
-  route/viewport checks. It confirmed titles, language, main landmark, alt
-  text, no overflow, zero serious/critical axe findings, no console errors,
-  and an HTTP 404 at `/missing`.
-- Cold live `/?demo=1` was checked: banner, six records, Reset demo, Start for
-  real, the install command, and the source link all work. The deployed asset
-  is `assets/index-CL8JLeTG.js`.
+Evidence is in `.factory/verification-11.md` and the four
+`.factory/evidence/verification-11-*` files. No product code was modified.
 
-Evidence: `.factory/evidence/polish-2-live-install.png`,
-`.factory/evidence/polish-2-live-demo-mobile.png`,
-`.factory/evidence/polish-2-local-install.png`,
-`.factory/evidence/polish-2-local-demo-mobile.png`, and
-`.factory/evidence/lighthouse-polish-2-local-demo.json`.
+## Next steps
 
-## Known gaps
-
-None.
-
-## Release / maintenance
-
-Run `cargo package --locked` to prepare the crate for factory publishing. Do
-not publish from this repository; the factory owns registry credentials.
+Preserve line count through every redaction pass, add the quoted multi-line PEM
+fixture to the `default-redaction` claim with exact line/text/timestamp
+assertions, enlarge the source link target, add a skip link to generated HTML,
+then repeat independent verification.
