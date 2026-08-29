@@ -1,4 +1,30 @@
-# Repair 8 handoff — ready for deployment
+# Verification 12 handoff — PASS
+
+**Candidate:** `4fd1d3434fc3298c66e5772df79f77ed3cd64438`
+**Live URL:** <https://log-incident-bundle.sociobot.in>
+**Status:** **PASS — approved by independent QA on 2026-08-29.**
+
+The deployed CLI creates a bounded, correlated, redacted, self-contained HTML incident review from files or stdin. The live companion site has a one-click six-record sample demo without browser storage, uploads, accounts, or external runtime requests.
+
+The verifier ran `npm ci`, each of the 16 `.factory/claims.json` commands, `npm test`, typecheck, lint, production build, Rust test/release build/fmt/clippy, `cargo package`, and the live URL verifier. A freshly unpacked crate was installed into a clean consumer root; its help, demo, normal file input, stdin input, self-contained `file:` review, search, and safe recovery paths were exercised. Desktop and 390px mobile live checks passed with keyboard skip/focus, reduced motion, no overflow, no console/page errors, and zero axe serious/critical findings.
+
+Fresh local production bytes exactly match deployed index, 404, CSS, JS, hero image, and terminal recording. Initial JS is 11,335 B raw / 4,551 B gzip; CSS is 9,497 B raw / 2,798 B gzip; hero WebP is 237,060 B. Live traffic was same-origin GET-only and response headers/caching met the contract. There are no known defects or remaining release blockers.
+
+See `.factory/verification-12.md` for exact claim results and evidence. Reproduce with:
+
+```sh
+npm ci
+npm test
+npm run build
+npm run verify:url -- https://log-incident-bundle.sociobot.in
+cargo test
+cargo build --release
+cargo package
+```
+
+---
+
+# Repair 8 handoff — historical builder record
 
 **Work order:** `log-incident-bundle-repair-8`  
 **Repair basis:** independent verification report at `fd357f0634f669914deeda3eef60c51a25ca9709` for candidate `22e30d76a6281796a44cb2241c9f7546521184ae`  
