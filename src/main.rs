@@ -279,7 +279,6 @@ struct RedactionRule {
     label: String,
     expression: Regex,
     preserve_prefix: bool,
-    preserve_line_breaks: bool,
 }
 
 fn read_sources(files: &[PathBuf]) -> Result<(SourceContents, Vec<Source>)> {
@@ -336,8 +335,8 @@ fn parse_records(contents: &[(String, String)]) -> Vec<Record> {
 ///
 /// This keeps the original records available for time bounds and correlation while
 /// allowing a PEM block to be removed even when its body spans multiple log lines.
-/// Replacement keeps the same number of line breaks, so a selected raw record can
-/// safely use the redacted text from its original source and line number.
+/// Every replacement preserves its matched line endings, so a selected raw record
+/// can safely use the redacted text from its original source and line number.
 fn redact_selected_records(
     selected: Vec<Record>,
     contents: &SourceContents,
@@ -460,19 +459,16 @@ fn redaction_rules(path: Option<&std::path::Path>) -> Result<Vec<RedactionRule>>
             )
             .unwrap(),
             preserve_prefix: false,
-            preserve_line_breaks: true,
         },
         RedactionRule {
             label: "email".into(),
             expression: Regex::new(r"(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}").unwrap(),
             preserve_prefix: false,
-            preserve_line_breaks: false,
         },
         RedactionRule {
             label: "bearer token".into(),
             expression: Regex::new(r"(?i)(bearer\s+)[^\s,;]+").unwrap(),
             preserve_prefix: true,
-            preserve_line_breaks: false,
         },
         RedactionRule {
             label: "secret field".into(),
@@ -481,13 +477,11 @@ fn redaction_rules(path: Option<&std::path::Path>) -> Result<Vec<RedactionRule>>
             ))
             .unwrap(),
             preserve_prefix: true,
-            preserve_line_breaks: false,
         },
         RedactionRule {
             label: "AWS access key ID".into(),
             expression: Regex::new(r"(?i)(?:AKIA|ASIA)[0-9A-Z]{16}").unwrap(),
             preserve_prefix: false,
-            preserve_line_breaks: false,
         },
     ];
     if let Some(path) = path {
@@ -512,7 +506,6 @@ fn redaction_rules(path: Option<&std::path::Path>) -> Result<Vec<RedactionRule>>
                     )
                 })?,
                 preserve_prefix: false,
-                preserve_line_breaks: false,
             });
         }
     }
@@ -532,20 +525,21 @@ fn redact(text: &str, rules: &[RedactionRule]) -> String {
                     ""
                 };
                 let mut replacement = format!("{prefix}[REDACTED:{}]", rule.label.to_uppercase());
-                if rule.preserve_line_breaks {
-                    replacement.extend(
-                        captures
-                            .get(0)
-                            .map(|matched| {
-                                matched
-                                    .as_str()
-                                    .chars()
-                                    .filter(|character| *character == '\n')
-                            })
-                            .into_iter()
-                            .flatten(),
-                    );
-                }
+                // A custom rule or quoted secret value may span physical source
+                // lines. Keep each original line ending so later rules cannot
+                // shift redacted text onto a different provenance line.
+                replacement.extend(
+                    captures
+                        .get(0)
+                        .map(|matched| {
+                            matched
+                                .as_str()
+                                .chars()
+                                .filter(|character| matches!(character, '\r' | '\n'))
+                        })
+                        .into_iter()
+                        .flatten(),
+                );
                 replacement
             })
             .into_owned()
@@ -561,15 +555,31 @@ fn now_text() -> String {
 fn render_html(bundle: &Bundle<'_>) -> Result<String> {
     let data = serde_json::to_string(bundle)?.replace('<', "\\u003c");
     let nonce = &hash(data.as_bytes())[..24];
-    Ok(format!(
+    let html = format!(
         r#"<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-{nonce}'; base-uri 'none'; form-action 'none'"><title>{}</title><style>*{{box-sizing:border-box}}body{{margin:0;background:#f6f0df;color:#17211f;font:16px Georgia,serif}}main{{max-width:1100px;margin:auto;padding:32px 20px;min-width:0}}header{{border-bottom:4px solid #17211f;padding-bottom:20px}}h1{{font-size:clamp(2rem,5vw,4rem);margin:.2em 0}}section{{min-width:0}}.stamp{{font:700 13px ui-monospace,monospace;letter-spacing:.08em;color:#b7432e}}.warning{{background:#fff1bd;border-left:6px solid #835400;padding:12px 16px}}.controls{{display:flex;gap:12px;flex-wrap:wrap;margin:24px 0}}input,button{{min-height:44px;border:2px solid #17211f;padding:8px 12px;font:inherit}}button{{background:#b7432e;color:#fff;font-weight:bold;cursor:pointer}}button:focus,input:focus{{outline:3px solid #29654c;outline-offset:3px}}table{{width:100%;border-collapse:collapse;font:13px ui-monospace,monospace;background:#132329;color:#f7f2e5}}th,td{{padding:10px;text-align:left;vertical-align:top;border-bottom:1px solid #42605e;overflow-wrap:anywhere}}th{{color:#f6d083}}.meta{{font:14px ui-monospace,monospace;overflow-wrap:anywhere}}#empty{{margin:16px 0;padding:12px 16px;background:#fff1bd;border-left:6px solid #835400}}#sources{{padding-left:24px}}#sources li{{max-width:100%;overflow-wrap:anywhere}}#sources code{{word-break:break-all}}@media(max-width:640px){{main{{padding:20px 12px}}th:nth-child(2),td:nth-child(2){{display:none}}}}</style></head><body><main><header><p class="stamp">LOCAL INCIDENT ARTIFACT · REVIEW COPY</p><h1>{}</h1><p>{}</p></header><p class="warning">{}</p><section aria-labelledby="evidence"><div class="controls"><label>Search evidence <input id="search" type="search" autofocus></label><button id="csv">Download CSV</button></div><h2 id="evidence">Evidence (<span id="count"></span> records)</h2><p id="empty" role="status" hidden></p><table><thead><tr><th>Time</th><th>Source</th><th>Line</th><th>Record</th></tr></thead><tbody id="rows"></tbody></table></section><section><h2>Provenance</h2><p class="meta">Redaction rules: {}</p><ul id="sources"></ul></section></main><script id="bundle-data" type="application/json">{data}</script><script nonce="{nonce}">const B=JSON.parse(document.querySelector('#bundle-data').textContent);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}}[c]));const search=document.querySelector('#search'),csv=document.querySelector('#csv'),rows=document.querySelector('#rows'),count=document.querySelector('#count'),empty=document.querySelector('#empty');function show(){{const q=search.value.toLowerCase(),a=B.records.filter(r=>Object.values(r).join(' ').toLowerCase().includes(q));count.textContent=a.length;rows.innerHTML=a.map(r=>`<tr><td>${{esc(r.timestamp||'No timestamp')}}</td><td>${{esc(r.source)}}</td><td>${{r.line}}</td><td>${{esc(r.text)}}</td></tr>`).join('');empty.hidden=a.length>0;if(!a.length)empty.textContent=B.records.length?'No evidence matches this search. Clear the search to see every record.':'No records matched the selected time bounds. Widen or remove --from or --to, then generate a new review.'}}search.addEventListener('input',show);csv.addEventListener('click',()=>{{const safe=x=>{{const s=String(x??'');return /^[=+\-@\t\r]/.test(s)?"'"+s:s}},line=r=>[r.timestamp||'',r.source,r.line,r.text].map(x=>'"'+safe(x).replaceAll('"','""')+'"').join(',');const blob=new Blob([['timestamp,source,line,text',...B.records.map(line)].join('\n')],{{type:'text/csv'}});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='incident-records.csv';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0)}});document.querySelector('#sources').innerHTML=B.sources.map(s=>`<li><code>${{esc(s.name)}}</code> — ${{s.lines}} lines — SHA-256 <code>${{s.sha256}}</code></li>`).join('');show();</script></body></html>"#,
         html_escape(bundle.title),
         html_escape(bundle.title),
         html_escape(bundle.question),
         html_escape(bundle.redaction_warning),
         html_escape(&bundle.redaction_rules.join(", "))
-    ))
+    );
+    Ok(add_review_skip_link(html))
 }
+
+fn add_review_skip_link(html: String) -> String {
+    let without_autofocus = html.replacen(" autofocus>", ">", 1);
+    let with_skip_style = without_autofocus.replacen(
+        "<style>",
+        "<style>.skip{position:absolute;left:10px;top:-56px;display:inline-flex;min-height:44px;align-items:center;padding:8px;background:#17211f;color:#fff;font-weight:bold;z-index:1}.skip:focus{top:10px;outline:3px solid #29654c;outline-offset:3px}",
+        1,
+    );
+    with_skip_style.replacen(
+        "<body><main>",
+        "<body><a class=\"skip\" href=\"#main\">Skip to review</a><main id=\"main\" tabindex=\"-1\">",
+        1,
+    )
+}
+
 fn html_escape(text: &str) -> String {
     text.replace('&', "&amp;")
         .replace('<', "&lt;")
@@ -620,7 +630,6 @@ mod tests {
             label: "customer id".into(),
             expression: Regex::new(r"customer_id=([A-Za-z0-9_-]+)").unwrap(),
             preserve_prefix: false,
-            preserve_line_breaks: false,
         }];
         let output = redact("customer_id=cust_private_73", &rules);
         assert!(!output.contains("cust_private_73"));
@@ -647,6 +656,55 @@ mod tests {
         assert!(output.contains("Cookie: [REDACTED:SECRET FIELD]"));
         assert!(output.contains("private_key=[REDACTED:SECRET FIELD]"));
         assert!(output.contains("credentials=[REDACTED:SECRET FIELD]"));
+    }
+
+    #[test]
+    fn quoted_multiline_private_key_keeps_every_record_on_its_source_line() {
+        let rules = redaction_rules(None).unwrap();
+        let source = concat!(
+            "2026-08-22T14:01:00Z trace_id=repro event=before\n",
+            "2026-08-22T14:01:01Z trace_id=repro private_key=\"-----BEGIN PRIVATE KEY-----\n",
+            "SENSITIVE_PRIVATE_KEY_BODY\n",
+            "-----END PRIVATE KEY-----\" event=key_loaded\n",
+            "2026-08-22T14:01:02Z trace_id=repro event=after\n",
+        );
+        let contents = vec![("quoted-pem.log".into(), source.into())];
+        let records = redact_selected_records(parse_records(&contents), &contents, &rules);
+
+        assert_eq!(
+            records
+                .iter()
+                .map(|record| (
+                    record.line,
+                    record.timestamp.as_deref(),
+                    record.text.as_str()
+                ))
+                .collect::<Vec<_>>(),
+            vec![
+                (
+                    1,
+                    Some("2026-08-22T14:01:00Z"),
+                    "2026-08-22T14:01:00Z trace_id=repro event=before"
+                ),
+                (
+                    2,
+                    Some("2026-08-22T14:01:01Z"),
+                    "2026-08-22T14:01:01Z trace_id=repro private_key=[REDACTED:SECRET FIELD]"
+                ),
+                (3, None, ""),
+                (4, None, " event=key_loaded"),
+                (
+                    5,
+                    Some("2026-08-22T14:01:02Z"),
+                    "2026-08-22T14:01:02Z trace_id=repro event=after"
+                ),
+            ]
+        );
+        let redacted = redact(source, &rules);
+        assert_eq!(source.lines().count(), redacted.lines().count());
+        for removed in ["SENSITIVE_PRIVATE_KEY_BODY", "-----END PRIVATE KEY-----"] {
+            assert!(!redacted.contains(removed), "{removed} was not redacted");
+        }
     }
 
     #[test]

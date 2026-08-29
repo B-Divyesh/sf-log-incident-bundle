@@ -92,6 +92,13 @@ test('@claim:portable-html generated bundle renders, searches, exports, and show
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(bundle.url);
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await page.keyboard.press('Tab');
+  const reviewSkip = page.getByRole('link', { name: 'Skip to review' });
+  await expect(reviewSkip).toBeFocused();
+  const reviewSkipBox = await reviewSkip.boundingBox();
+  expect(reviewSkipBox!.height).toBeGreaterThanOrEqual(44);
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#main')).toBeFocused();
   await expect(page.locator('#rows tr')).toHaveCount(6);
   await expect(page.getByText('SHA-256')).toBeVisible();
   await page.getByLabel('Search evidence').fill('timeout');
@@ -141,6 +148,31 @@ test('@claim:default-redaction generated bundles redact every named default cate
   await expect(page.locator('#rows')).toContainText('private_key=[REDACTED:SECRET FIELD]');
   await expect(page.locator('#rows')).toContainText('credentials=[REDACTED:SECRET FIELD]');
   await expect(page.locator('#rows tr')).toHaveCount(9);
+
+  const quotedPem = [
+    '2026-08-22T14:01:00Z trace_id=repro event=before',
+    '2026-08-22T14:01:01Z trace_id=repro private_key="-----BEGIN PRIVATE KEY-----',
+    'SENSITIVE_PRIVATE_KEY_BODY',
+    '-----END PRIVATE KEY-----" event=key_loaded',
+    '2026-08-22T14:01:02Z trace_id=repro event=after'
+  ].join('\n');
+  const quotedPemBundle = await makeBundle(quotedPem);
+  await page.goto(quotedPemBundle.url);
+  const quotedPemRows = await page.locator('#rows tr').evaluateAll(rows => rows.map(row => {
+    const cells = [...row.querySelectorAll('td')].map(cell => cell.textContent);
+    return { timestamp: cells[0], line: cells[2], text: cells[3] };
+  }));
+  expect(quotedPemRows).toEqual([
+    { timestamp: '2026-08-22T14:01:00Z', line: '1', text: '2026-08-22T14:01:00Z trace_id=repro event=before' },
+    { timestamp: '2026-08-22T14:01:01Z', line: '2', text: '2026-08-22T14:01:01Z trace_id=repro private_key=[REDACTED:SECRET FIELD]' },
+    { timestamp: 'No timestamp', line: '3', text: '' },
+    { timestamp: 'No timestamp', line: '4', text: ' event=key_loaded' },
+    { timestamp: '2026-08-22T14:01:02Z', line: '5', text: '2026-08-22T14:01:02Z trace_id=repro event=after' }
+  ]);
+  const quotedPemHtml = await readFile(quotedPemBundle.output, 'utf8');
+  for (const removed of ['SENSITIVE_PRIVATE_KEY_BODY', '-----END PRIVATE KEY-----']) {
+    expect(quotedPemHtml).not.toContain(removed);
+  }
 });
 
 test('@claim:terminal-recording landing ships the self-hosted recording from the packaged CLI demo', async ({ page }, testInfo) => {
@@ -436,11 +468,18 @@ test('390px demo has no overflow and all primary controls meet touch size', asyn
   }
 });
 
-test('390px landing links and skip link meet touch size', async ({ page }) => {
+test('landing source link and skip link meet touch size at desktop and 390px', async ({ page }) => {
+  await page.goto('/');
+  const desktopSourceLink = await page.getByRole('link', { name: /Read the source on GitHub/ }).boundingBox();
+  expect(desktopSourceLink!.width).toBeGreaterThanOrEqual(44);
+  expect(desktopSourceLink!.height).toBeGreaterThanOrEqual(44);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   const sample = await page.getByRole('link', { name: 'Open the working sample review →' }).boundingBox();
   expect(sample!.height).toBeGreaterThanOrEqual(44);
+  const mobileSourceLink = await page.getByRole('link', { name: /Read the source on GitHub/ }).boundingBox();
+  expect(mobileSourceLink!.width).toBeGreaterThanOrEqual(44);
+  expect(mobileSourceLink!.height).toBeGreaterThanOrEqual(44);
   await page.keyboard.press('Tab');
   const skip = await page.getByRole('link', { name: 'Skip to content' }).boundingBox();
   expect(skip!.height).toBeGreaterThanOrEqual(44);
