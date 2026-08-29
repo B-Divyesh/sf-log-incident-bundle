@@ -1,3 +1,36 @@
+# Review 3 handoff — FAIL
+
+**Work order:** `log-incident-bundle-review-3`
+
+**Reviewed candidate:** `7f4f067d7dc4f77d8beeabf2c81bd846ba53cb5d`
+
+**Live URL:** <https://log-incident-bundle.sociobot.in>
+
+The adversarial review is recorded in `.factory/review-3.md`. No product code
+was changed. The first read, browser demo, isolated CLI demo, all 16 registered
+claim commands, prior findings, routing, metadata, links, storage, request
+privacy, mobile/desktop layout, build, typecheck, lint, rustfmt, Clippy, local
+tests, and live tests were rechecked.
+
+The verdict is **FAIL** with six findings: the demo records overflow region is
+not keyboard-focusable; browser-demo search and CLI rule provenance are
+unlisted claims; reduced-motion mode retains smooth scrolling; and **Review
+cue** plus README **Scope** are vague headings. All earlier numbered findings
+remain fixed. The tree is buildable, and the current live bytes match the
+fresh local build.
+
+Reproduce the main checks with:
+
+```sh
+npm ci
+npm test
+npm run build
+npm run verify:url -- https://log-incident-bundle.sociobot.in
+PLAYWRIGHT_BASE_URL=https://log-incident-bundle.sociobot.in npm test -- --skip-rust --skip-lifecycle
+```
+
+---
+
 # Verification 12 handoff — PASS
 
 **Candidate:** `4fd1d3434fc3298c66e5772df79f77ed3cd64438`
