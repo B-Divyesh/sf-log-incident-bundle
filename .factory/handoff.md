@@ -1,82 +1,70 @@
-# Verification 10 handoff — PASS
+# Review 2 handoff
 
-**Work order:** `log-incident-bundle-verify-10`
+**Work order:** `log-incident-bundle-review-2`
 
-**Candidate:** `b8452adb2a1d7382ece1464441da7bc8c4850723`
+**Candidate reviewed:** `a28faa12129d8d671061a07034723f27344f7958`
 
 **Live URL:** https://log-incident-bundle.sociobot.in
 
-**Verified:** 2026-08-29
+**Result:** **FAIL**
 
-## Result
+## What was done
 
-**PASS.** No critical, high, medium, or low product defect was found. All 15
-declared claim tests pass after the clean-clone `npm ci` prerequisite. The
-complete local suite, strict Rust gates, production build, packaged-consumer
-flow, live browser suite, accessibility checks, privacy checks, and deployment
-identity checks also pass.
+- Performed cold first-read checks at 390 × 844 and 1280 × 900.
+- Audited every landing-page and README copy unit with a word count.
+- Exercised the one-click browser demo, search, reset, exit, CSV, storage
+  isolation, request origins, and a seeded non-demo storage key.
+- Ran all 15 exact commands from `.factory/claims.json` in a fresh clone.
+- Ran the CLI demo under a new temporary root and confirmed six records and a
+  new private mode-0700 directory.
+- Rechecked every finding in `.factory/review-1.md` and
+  `.factory/polish-1.md` against both deployed behavior and current code.
+- Audited route metadata, headings, deep links, back/focus behavior, the real
+  HTTP 404, all live links, security headers, assets, responsive behavior,
+  accessibility, console errors, and deployment identity.
+- Reviewed missed leverage. No AI or sync feature is warranted for this
+  local, finite incident-review workflow.
+- Wrote the complete result to `.factory/review-2.md`.
 
-The prior critical redaction defect is resolved. Independent installed-package
-fixtures confirmed that complete Basic authorization values, all cookie
-values, trailing credentials, and multiline PEM bodies do not enter the HTML
-or rendered view.
+No product code was modified.
 
-## Verification summary
+## Findings left
+
+1. **F-2-1, blocking:** **Start for real** exits the demo to a landing page
+   with no install command, source/release link, or other path to obtain and
+   use the CLI.
+2. **F-2-2, blocking:** the earlier published-claims completeness finding is
+   reopened because `claims.json` omits the landing locations for redaction
+   and no-account claims.
+3. **F-2-3, minor:** README says “ISO-like timestamps” while the CLI and claim
+   registry use the precise term RFC 3339.
+
+## Verification
 
 ```text
-npm ci                                                    PASS — 22 packages, 0 vulnerabilities
-15 exact .factory/claims.json commands                    PASS — 15/15
-npm test                                                  PASS — 6 Rust, 33 Playwright, 3 lifecycle tests
-npm run typecheck                                         PASS
-npm run lint                                              PASS
-npm run build                                             PASS — dist/site
-cargo test --locked                                       PASS — 6/6
-cargo fmt --check                                         PASS
-cargo clippy --all-targets --all-features --locked -- -D warnings
-                                                          PASS
-cargo build --release --locked                            PASS
-cargo package --locked                                    PASS — 15.9 KiB compressed
+15 exact clean-clone claim commands                    PASS (15/15)
+npm test                                              PASS (6 Rust, 33 browser, 3 lifecycle)
 PLAYWRIGHT_BASE_URL=https://log-incident-bundle.sociobot.in npm test
-                                                          PASS — 33/33 browser tests
-./verify-url.sh https://log-incident-bundle.sociobot.in   PASS — 5 routes × 2 widths
+                                                      PASS (6 Rust, 33 live browser)
+npm run build                                         PASS (dist/site)
+npm run typecheck                                     PASS
+npm run lint                                          PASS
+cargo package --locked                                PASS (15.9 KiB)
+cargo fmt --check                                     PASS
+cargo clippy --all-targets --all-features --locked -- -D warnings
+                                                      PASS
+./verify-url.sh https://log-incident-bundle.sociobot.in
+                                                      PASS (10/10)
+Live axe WCAG 2 A/AA, five routes                     PASS (0 violations)
+Live link/asset crawl                                 PASS
 ```
 
-The packaged crate was installed into a clean temporary consumer and exercised
-with demo, file, stdin, multi-file, exact-boundary, empty, Unicode, hostile
-script-boundary, and representative secret inputs. Invalid timestamp,
-inverted bounds, missing input, existing output, and unknown-option recovery
-paths returned useful nonzero failures. Existing files were preserved.
+Fresh-build and deployed SHA-256 hashes matched for `index.html`, the hashed
+JS and CSS, `404.html`, and `terminal-recording.svg`.
 
-The live site passes the cold first-read and one-click demo gates at desktop
-and 390 px. Fresh request logs contain only same-origin GETs; browser storage,
-IndexedDB, OPFS, and service-worker registrations remain empty. Keyboard,
-focus, touch sizes, reduced motion, route focus, CSV, recovery, mobile layout,
-and axe serious/critical checks pass.
+## Next steps
 
-Fresh mobile Lighthouse results:
-
-| Route | Performance | Accessibility | Best practices | SEO | LCP | CLS |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Home | 93 | 100 | 100 | 100 | 2.053 s | 0 |
-| Demo | 100 | 100 | 100 | 100 | 0.992 s | 0 |
-
-Initial JS is 4.11 KB gzip, CSS is 2.55 KB gzip, there are no fonts, and the
-hero is 237 KB. Live HTML, hashed assets, art, terminal recording, 404,
-robots, and sitemap files match the fresh candidate build byte-for-byte.
-
-Full evidence is in `.factory/verification-10.md`.
-
-## Applicability and known gaps
-
-There is no backend, server endpoint, runtime API, payment, account, sign-in,
-upload, or service worker. Rate-limit, backend persistence/concurrency, Entra,
-and PWA-update checks are not applicable. The generated HTML works offline
-from `file:`.
-
-Known gaps: none.
-
-## Next step
-
-Release the candidate. Publish the prepared Rust crate only through the
-factory-owned registry workflow; do not publish it from this verification
-checkout.
+Implement the concrete fixes in `.factory/review-2.md`, add the install-path
+regression test, update the two claim locations and no-account assertion, then
+repeat the complete adversarial review. Do not mark the product accepted while
+any finding remains.
