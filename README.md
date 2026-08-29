@@ -3,8 +3,8 @@
 Create a bounded, redacted incident log review copy for a teammate.
 
 It is for small teams that need an answer from production logs without giving
-someone broad production-log access. It is a local CLI. It reads only the files
-or standard input you provide and writes one self-contained HTML file.
+someone broad production-log access. The CLI reads a chosen file or standard
+input and writes one self-contained HTML review copy.
 
 [Try the sample review](https://log-incident-bundle.sociobot.in/demo) ·
 [Privacy](https://log-incident-bundle.sociobot.in/privacy) ·
@@ -54,8 +54,9 @@ values for that field inside the window, then adds other matching records.
 
 ## Redaction
 
-The default rules replace email addresses, bearer tokens, common secret fields,
-and AWS-style access keys. Add reviewable local rules with a plain text file:
+The default rules replace email addresses, bearer tokens, common secret fields
+including `token`, and `AKIA` or `ASIA` AWS access-key IDs. Add reviewable local
+rules with a plain text file:
 
 ```text
 # rules.txt
@@ -80,14 +81,8 @@ log-incident-bundle --demo
 
 It prints the path to a temporary review copy built from
 [`examples/payment-api.log`](examples/payment-api.log). The browser version is
-at `/demo`; its sample state stays in memory and does not touch your saved data.
-
-## Paid project license
-
-The core CLI, safety behavior, and exports are free. A $19 one-time project
-license enables saved local redaction-rule profiles in the
-companion site. Checkout and license verification use Sociobot. A license token
-can be restored from the landing page after a device change.
+at `/demo`. It uses six fixed sample records in memory and writes no demo data
+to browser storage.
 
 ## Develop and verify
 
@@ -101,8 +96,8 @@ cargo test
 cargo build --release
 ```
 
-`npm test` runs the local CLI tests and browser checks. The static site has no
-analytics or third-party runtime scripts. It uses only self-hosted assets.
+`npm test` runs the local CLI tests and browser checks. Site pages load runtime
+files only from the product website.
 
 To prepare the Rust crate for publishing, run:
 
@@ -121,9 +116,9 @@ for hashed assets. Push an approved commit to `main` for the factory deployment.
 
 ## Scope
 
-This is not log ingestion, live tailing, alerting, retention, hosted search, or
-a full logging service. It makes a finite incident review copy.
+The CLI creates a finite review copy. It is not a live log service.
 
 ## License
 
-[MIT](LICENSE)
+The CLI and companion site are available under the [MIT License](LICENSE).
+There is no paid tier or purchase flow.

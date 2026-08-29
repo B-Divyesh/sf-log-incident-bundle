@@ -4,7 +4,9 @@
 
 - Repair generated review files: rendered records, search, CSV, provenance, and safe script-data serialization.
 - Validate time bounds, redact quoted JSON secrets, and align the CLI demo with the six-record sample review.
-- Add browser regressions for generated artifacts, demo isolation, route focus, touch targets, and returned licenses.
+- Add browser regressions for generated artifacts, demo isolation, route focus, and touch targets.
+- Redact AWS STS access-key IDs and plain token fields, wrap mobile provenance, and register every public claim.
+- Remove the unregistered paid offer, align the site with its MIT license, and add framing protection.
 
 ## 0.1.0 — 2026-08-28
 

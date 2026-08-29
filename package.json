@@ -1,7 +1,7 @@
 {
   "name": "log-incident-bundle-site",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,7 @@
     "test": "cargo test && playwright test",
     "test:unit": "cargo test",
     "test:e2e": "playwright test",
+    "verify:url": "./verify-url.sh",
     "typecheck": "tsc --noEmit",
     "lint": "npm run typecheck",
     "preview": "vite preview"

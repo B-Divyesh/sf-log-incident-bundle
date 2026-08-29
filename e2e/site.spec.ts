@@ -17,13 +17,44 @@ async function makeBundle(input: string, options: string[] = []) {
   return { output, url: pathToFileURL(output).href };
 }
 
-test('@claim:local-processing demo sends no data off this origin', async ({ page }) => {
+test('@claim:local-processing demo stays in memory and sends requests only to this origin', async ({ page }) => {
   const origins = new Set<string>();
   page.on('request', request => origins.add(new URL(request.url()).origin));
   await page.goto('/demo');
   await expect(page.getByRole('status')).toContainText('Demo — sample data, nothing is saved');
   await expect(page.getByRole('heading', { name: 'Did the retry cause duplicate charges?' })).toBeVisible();
+  await page.getByLabel('Search records').fill('timeout');
+  await page.getByRole('button', { name: 'Reset demo' }).click();
+  expect(await page.evaluate(() => ({ ...localStorage }))).toEqual({});
+  expect(await page.evaluate(() => ({ ...sessionStorage }))).toEqual({});
+  expect(await page.evaluate(async () => (await indexedDB.databases()).map(database => database.name))).toEqual([]);
+  expect(await page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory();
+    const names: string[] = [];
+    for await (const [name] of root.entries()) names.push(name);
+    return names;
+  })).toEqual([]);
   expect([...origins]).toEqual(['http://127.0.0.1:4173']);
+});
+
+test('@claim:site-runtime site pages load runtime files only from this website', async ({ page }) => {
+  const origins = new Set<string>();
+  page.on('request', request => origins.add(new URL(request.url()).origin));
+  for (const path of ['/', '/demo', '/privacy', '/terms']) {
+    await page.goto(path);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  }
+  expect([...origins]).toEqual(['http://127.0.0.1:4173']);
+});
+
+test('@claim:site-log-privacy website has no log upload or account feature', async ({ page }) => {
+  const methods: string[] = [];
+  page.on('request', request => methods.push(request.method()));
+  await page.goto('/');
+  expect(await page.locator('input[type="file"], form').count()).toBe(0);
+  await page.goto('/privacy');
+  await expect(page.getByText('The website has no log upload or account feature.')).toBeVisible();
+  expect(methods.every(method => method === 'GET')).toBe(true);
 });
 
 test('@claim:csv-download demo downloads every sample record as CSV', async ({ page }) => {
@@ -62,13 +93,36 @@ test('@claim:portable-html generated bundle renders, searches, exports, and show
   expect(requests.filter(url => !url.startsWith('file:'))).toEqual([]);
 });
 
-test('@claim:default-redaction generated bundles redact quoted JSON secret fields', async ({ page }) => {
-  const input = '2026-08-22T14:01:34Z {"apiKey":"json-key-value","password":"json-password-value","access_token":"json-token-value","email":"dev@example.com","aws":"AKIA1234567890ABCDEF"}';
+test('@claim:default-redaction generated bundles redact every named default category', async ({ page }) => {
+  const input = '2026-08-22T14:01:01Z credential=ASIA1234567890ABCDEF token=plain-secret-value authorization: Bearer abcdefghijklmnop {"apiKey":"json-key-value","password":"json-password-value","access_token":"json-token-value","email":"dev@example.com","aws":"AKIA1234567890ABCDEF"}';
   const bundle = await makeBundle(input);
   await page.goto(bundle.url);
   const body = await page.locator('body').innerText();
-  for (const secret of ['json-key-value', 'json-password-value', 'json-token-value', 'dev@example.com', 'AKIA1234567890ABCDEF']) expect(body).not.toContain(secret);
+  const html = await readFile(bundle.output, 'utf8');
+  for (const secret of ['ASIA1234567890ABCDEF', 'plain-secret-value', 'abcdefghijklmnop', 'json-key-value', 'json-password-value', 'json-token-value', 'dev@example.com', 'AKIA1234567890ABCDEF']) {
+    expect(body).not.toContain(secret);
+    expect(html).not.toContain(secret);
+  }
+  await expect(page.locator('#rows')).toContainText('[REDACTED:AWS ACCESS KEY ID]');
+  await expect(page.locator('#rows')).toContainText('token=[REDACTED:SECRET FIELD]');
   await expect(page.locator('#rows tr')).toHaveCount(1);
+});
+
+test('@claim:cli-inputs CLI reads a chosen file or standard input', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'log-incident-bundle-inputs-'));
+  const source = join(directory, 'chosen.log');
+  const fileOutput = join(directory, 'file-review.html');
+  const stdinOutput = join(directory, 'stdin-review.html');
+  const record = '2026-08-22T14:01:01Z trace_id=chosen status=ok\n';
+  await writeFile(source, record);
+  const fromFile = spawnSync('cargo', ['run', '--quiet', '--', source, '--output', fileOutput, '--json'], { cwd: root, encoding: 'utf8' });
+  const fromStdin = spawnSync('cargo', ['run', '--quiet', '--', '--output', stdinOutput, '--json'], { cwd: root, encoding: 'utf8', input: record });
+  expect(fromFile.status).toBe(0);
+  expect(fromStdin.status).toBe(0);
+  expect(JSON.parse(fromFile.stdout).records).toBe(1);
+  expect(JSON.parse(fromStdin.stdout).records).toBe(1);
+  expect(await readFile(fileOutput, 'utf8')).toContain('chosen.log');
+  expect(await readFile(stdinOutput, 'utf8')).toContain('stdin');
 });
 
 test('generated bundle keeps script-boundary content inert', async ({ page }) => {
@@ -105,6 +159,23 @@ test('@claim:demo-cli produces the advertised six-record correlated review', asy
   await expect(page.locator('#rows')).not.toContainText('healthcheck=ok');
 });
 
+test('@claim:finite-review CLI creates a finite review copy, not a live service', async () => {
+  const result = spawnSync('cargo', ['run', '--quiet', '--', '--demo', '--json'], { cwd: root, encoding: 'utf8', timeout: 30_000 });
+  expect(result.status).toBe(0);
+  expect(JSON.parse(result.stdout).records).toBe(6);
+  const help = execFileSync('cargo', ['run', '--quiet', '--', '--help'], { cwd: root, encoding: 'utf8' });
+  expect(help).not.toMatch(/--(?:listen|serve|tail|watch)\b/);
+});
+
+test('@claim:mit-license project is MIT licensed with no purchase flow', async ({ page }) => {
+  expect(await readFile(join(root, 'LICENSE'), 'utf8')).toContain('MIT License');
+  await page.goto('/');
+  await expect(page.getByText('MIT licensed. No account or purchase.')).toBeVisible();
+  expect(await page.locator('a[href*="checkout"]').count()).toBe(0);
+  await page.goto('/terms');
+  await expect(page.getByText('There is no paid tier or purchase flow.')).toBeVisible();
+});
+
 test('keyboard path reaches demo and filters records', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('link', { name: 'Try it with sample data' }).press('Enter');
@@ -136,18 +207,6 @@ test('route navigation moves focus to the new page heading', async ({ page }) =>
   await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
 });
 
-test('a returned inactive license verifies once and shows a notice', async ({ page }) => {
-  let checks = 0;
-  await page.route('https://api.sociobot.in/api/v1/products/log-incident-bundle/verify?license=inactive-token', async route => {
-    checks += 1;
-    await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ valid: false, reason: 'invalid' }) });
-  });
-  await page.goto('/?license=inactive-token');
-  await expect(page.locator('.license-notice')).toContainText('License no longer active');
-  expect(checks).toBe(1);
-  await expect(page).toHaveURL('/');
-});
-
 test('demo has no serious or critical accessibility violations', async ({ page }) => {
   await page.goto('/demo');
   await page.addScriptTag({ content: axe.source });
@@ -171,6 +230,15 @@ test('390px demo has no overflow and all primary controls meet touch size', asyn
       expect(box!.height).toBeGreaterThanOrEqual(44);
     }
   }
+});
+
+test('390px generated CLI artifact has no page-level overflow', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const sample = await readFile(join(root, 'examples/payment-api.log'), 'utf8');
+  const bundle = await makeBundle(sample, ['--from', '2026-08-22T14:01:00Z', '--to', '2026-08-22T14:02:00Z', '--correlate', 'trace_id']);
+  await page.goto(bundle.url);
+  await expect(page.locator('#sources code').last()).toHaveText(/^[a-f0-9]{64}$/);
+  expect(await page.evaluate(() => ({ viewport: window.innerWidth, document: document.documentElement.scrollWidth }))).toEqual({ viewport: 390, document: 390 });
 });
 
 test('demo loads without console errors', async ({ page }) => {

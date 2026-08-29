@@ -1,31 +1,52 @@
 [
   {
     "id": "portable-html",
-    "claim": "Writes one self-contained review copy with search, CSV download, and source-hash provenance.",
-    "where": "landing facts, README",
+    "claim": "The CLI writes one self-contained HTML review copy with search, CSV download, and source-hash provenance.",
+    "where": "landing facts, landing preview, README",
     "test": "npm test -- --grep @claim:portable-html",
     "sandbox": "generate a bounded, correlated artifact from shipped sample data; open it from file: and exercise rows, search, CSV, and source hash"
   },
   {
     "id": "default-redaction",
-    "claim": "The default rules replace email addresses, bearer tokens, common secret fields, and AWS-style access keys.",
+    "claim": "Default rules replace email addresses, bearer tokens, common secret fields including token, and AKIA or ASIA AWS access-key IDs.",
     "where": "README redaction section",
     "test": "npm test -- --grep @claim:default-redaction",
-    "sandbox": "generate a browser-visible artifact from a structured fixture and assert all named secret values are absent"
+    "sandbox": "generate a browser-visible artifact from the verifier's exact stdin record plus structured JSON fields; assert every raw secret is absent from both the file and rendered view"
+  },
+  {
+    "id": "cli-inputs",
+    "claim": "The CLI reads a chosen file or standard input.",
+    "where": "landing facts, how it works, README",
+    "test": "npm test -- --grep @claim:cli-inputs",
+    "sandbox": "run the CLI once with a named sample file and once with the same record on stdin; assert both artifacts contain exactly one record and the correct source"
   },
   {
     "id": "local-processing",
-    "claim": "Demo log data stays on this device.",
-    "where": "demo banner, README",
+    "claim": "The browser demo uses six fixed sample records in memory and writes no demo data to browser storage.",
+    "where": "demo banner, privacy page, README, demo documentation",
     "test": "npm test -- --grep @claim:local-processing",
-    "sandbox": "fresh browser context at /demo; record every request origin"
+    "sandbox": "fresh browser context at /demo; search and reset; assert same-origin requests and empty local/session storage"
+  },
+  {
+    "id": "site-runtime",
+    "claim": "Site pages load runtime files only from the product website.",
+    "where": "privacy page, README",
+    "test": "npm test -- --grep @claim:site-runtime",
+    "sandbox": "fresh browser context; visit home, demo, privacy, and terms while recording every request origin"
+  },
+  {
+    "id": "site-log-privacy",
+    "claim": "The website has no log upload or account feature.",
+    "where": "privacy page",
+    "test": "npm test -- --grep @claim:site-log-privacy",
+    "sandbox": "fresh browser context; inspect home and privacy for file inputs and forms; assert every request is GET"
   },
   {
     "id": "csv-download",
-    "claim": "Download the sample review as CSV.",
+    "claim": "The browser demo downloads all six sample records as CSV.",
     "where": "demo toolbar",
     "test": "npm test -- --grep @claim:csv-download",
-    "sandbox": "fresh browser context at /demo; download and inspect the CSV"
+    "sandbox": "fresh browser context at /demo; download and inspect the CSV header and six records"
   },
   {
     "id": "demo-cli",
@@ -33,5 +54,19 @@
     "where": "README demo section, /demo",
     "test": "npm test -- --grep @claim:demo-cli",
     "sandbox": "run --demo from a clean checkout, parse its JSON result, and open the generated artifact"
+  },
+  {
+    "id": "finite-review",
+    "claim": "The CLI creates a finite review copy, not a live log service.",
+    "where": "landing scope, README scope",
+    "test": "npm test -- --grep @claim:finite-review",
+    "sandbox": "run the demo command with a timeout; assert it exits with a six-record file and exposes no server, watch, listen, or tail option"
+  },
+  {
+    "id": "mit-license",
+    "claim": "The CLI and companion site are MIT licensed, with no paid tier or purchase flow.",
+    "where": "landing facts, terms, README license",
+    "test": "npm test -- --grep @claim:mit-license",
+    "sandbox": "read the shipped LICENSE; inspect home and terms; assert no checkout link exists"
   }
 ]
