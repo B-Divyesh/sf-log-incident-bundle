@@ -1,133 +1,117 @@
-# Verification 8 handoff — FAIL
+# Repair 6 handoff — verification 8 blocker resolved
 
-**Candidate:** `3bf6275361109bdeeaf2442d4899d52df0467590`
-**Live URL:** https://log-incident-bundle.sociobot.in
-**Verdict:** **FAIL.** Three of the exact required `.factory/claims.json` test
-commands fail from the clean checkout with
-`net::ERR_CONNECTION_REFUSED` at the configured Playwright demo entry point:
-`@claim:local-processing`, `@claim:site-runtime`, and
-`@claim:csv-download`. Any failed claim test is release-blocking.
+**Work order:** `log-incident-bundle-repair-6`
 
-The product itself otherwise passed the full local suite (5 Rust + 32 browser
-tests), full suite against production, clean consumer CLI installation and
-normal/boundary/error CLI workflows, build/type/lint/package checks, live
-desktop/390px/keyboard/reduced-motion/axe/privacy/header checks, and bytewise
-live-build identity. See `.factory/verification-8.md` for exact commands,
-evidence, severity, and the required repair: make the individual Playwright
-claim command lifecycle reliable, then rerun all 14 claims from a fresh clone.
+**Verifier report commit:** `d0b9750ed63349922564b83584b4040c2e4ea8ea`
 
----
+**Failed candidate:** `3bf6275361109bdeeaf2442d4899d52df0467590`
 
-# Prior repair handoff — verification 7 release blockers
+**Repair commit:** `e05ec79d1b1175238b33d834432b02aa90471d69`
 
-**Work order:** `log-incident-bundle-repair-5`
-**Report commit:** `c3312b2c9343d69eb82cfc96557b2b9eaa7e296a`
-**Failed candidate:** `f8bf6f9142e58aee74b0b7038bf11009c4e2acf7`
-**Repair commit:** `6653447a2ffb402ca20fcc3491771c48be26db32`
-**Release:** `0.1.2`
 **Live URL:** https://log-incident-bundle.sociobot.in
 
-## Completed repair
+**Deployment:** `c1137b9b-a7e5-4937-8a0e-ca70eccc2a56` — succeeded
 
-- Reproduced the destructive alias exactly before editing. The candidate exited
-  0, changed the source SHA-256 from
-  `2c25ff4f5695ef4c133c100f266f1375a689b24580b78970c03b18138e235b4e`
-  to `fa8167a01552b12cfcbac9313c7eb5d48d9395f01303ddbb9c88df298899c190`,
-  and replaced the first line with `<!doctype html>`.
-- Output paths now resolve against canonical parents and are compared with each
-  input by resolved path and, on Unix, device/inode identity. Direct paths,
-  symbolic links, hard links, and redaction-rule input aliases are rejected.
-  Output creation uses `create_new`; every existing file or symlink is refused.
-- Reproduced the fixed demo-path symlink overwrite before editing. The victim
-  changed from SHA-256
-  `7c0608f594b9ecbaa0727f406973b3e3bdf474a004da5009129e9538bf07003d`
-  to `1ead0ddba95c41bb07fb92b876cd70a84d910f306c6d3c99f98747945c08bb0e`.
-  The demo now atomically creates a unique mode-0700 temporary directory and a
-  new `review.html`. It never opens the legacy shared path or follows its link.
-- The conservative preset now covers canonical and prefix/suffix forms for
-  passwords, secrets, OAuth/access/refresh/ID tokens, API/private keys,
-  authorization, credentials, sessions, and cookies. The reported seven raw
-  values are absent from both serialized HTML and rendered evidence.
-- Generated-artifact and website CSV writers prefix cells beginning with `=`,
-  `+`, `-`, `@`, tab, or carriage return with an apostrophe before quoting.
-- Demo-banner focus uses pale paper against signal red. The measured ratio is
-  above 3:1. The mobile sample-review and exposed skip links are at least 44px
-  high. The visual-system document records the contextual focus treatment.
-- Exact regressions cover direct, hard-link, and symbolic-link output aliases;
-  existing-output refusal; the legacy demo symlink victim; consecutive unique
-  demo paths and directory permissions; every reported secret; four formula
-  prefixes; focus contrast; and 390px touch sizes.
+## Release-blocking finding and repair
+
+Verification 8 recorded `net::ERR_CONNECTION_REFUSED` for the exact
+`local-processing`, `site-runtime`, and `csv-download` claim commands. The old
+Playwright setup gave every process port 4173 and allowed a process to reuse a
+server owned by another invocation. Its browser could then lose that server
+during navigation.
+
+The browser-test runner now builds the site in an invocation-owned temporary
+directory, starts Vite in-process on an operating-system-assigned port, passes
+that origin to Playwright, and closes the server in `finally`. Temporary output
+is removed after the run. The Playwright assertions derive the expected origin
+from their actual `baseURL`. Direct Playwright use also has a process-specific
+fallback port and cannot reuse an existing server.
+
+The new lifecycle regression reserves port 4173 with a decoy page, then runs
+all three affected claim commands concurrently. Each command must build and
+serve its own site and reach its real assertion. This deterministically rejects
+the old fixed-port behavior.
+
+The browser error was timing-sensitive and did not recur in 15 sequential and
+three concurrent candidate attempts. The underlying leak was reproduced: three
+candidate-era `vite preview` child processes remained alive on the shared port
+after their parent tests. The repair regression passed and left no Vite process
+behind.
 
 ## Verification evidence
 
-Clean and complete local checks:
+A fresh clone of pushed commit `e05ec79` completed:
 
 ```text
 npm ci                                                    PASS — 22 packages, 0 vulnerabilities
-npm test                                                  PASS — 5 Rust tests, 32 Playwright tests
-all 14 exact .factory/claims.json commands                PASS
+npm test                                                  PASS — 5 Rust, 32 Playwright, 3 concurrent lifecycle claims
 npm run typecheck                                         PASS
 npm run lint                                              PASS
 npm run build                                             PASS — dist/site
 cargo fmt --check                                         PASS
 cargo clippy --all-targets --all-features -- -D warnings PASS
 cargo build --release                                     PASS
-cargo package --allow-dirty                               PASS
-./verify-url.sh http://127.0.0.1:4173                     PASS — 5 routes at 1280px and 390px
+cargo package --allow-dirty                               PASS — 9 files, 14.8 KiB compressed
 ```
 
-The production build contains 9,798 bytes of JavaScript (4.02 KB gzip) and
-7,781 bytes of CSS (2.51 KB gzip). Both remain below the product budgets.
+Every exact command in `.factory/claims.json` passed individually after the
+clean install: `portable-html`, `default-redaction`, `output-safety`,
+`cli-inputs`, `bounds-correlation`, `custom-redaction`, `local-processing`,
+`site-runtime`, `site-log-privacy`, `csv-download`, `demo-cli`, `finite-review`,
+`mit-license`, and `delivery-policy`.
 
-The final nine-file `0.1.2` crate is 14.7 KiB compressed. It was unpacked and
-installed with `cargo install --path ... --root ... --locked` in fresh
-temporary consumer directories. The installed binary passed `--version`,
-`--help`, `--demo --json`, and a bounded correlated file workflow.
+The packaged crate was unpacked into a fresh temporary consumer directory and
+installed with `cargo install --path ... --root ... --locked`. The installed
+`log-incident-bundle 0.1.2` passed `--version`, `--help`, `--demo --json`, a
+six-record bounded/correlated file workflow, a redacted stdin workflow, and
+invalid/inverted time-bound failures. Registry publication was not attempted.
 
-Browser checks cover desktop and 390px mobile, keyboard-only routes, focus,
-touch targets, reduced motion, route focus announcements, no overflow, empty
-and error states, CSV downloads, generated-file search/provenance, script
-boundary attacks, and formula-leading CSV input. Axe reported zero serious or
-critical findings on every site route. Generated artifacts made no network
-requests and logged no browser errors.
+## Browser, accessibility, privacy, and offline checks
 
-Privacy tests recorded only same-origin GET requests across home, demo,
-privacy, and terms. Local storage, session storage, IndexedDB, and OPFS stayed
-empty. This site has no service worker or offline/update claim; the CLI and its
-generated `file:` artifact are the offline product surface and worked with no
-network requests. There is no backend, account, sign-in, billing, or AI path,
-so those checks are not applicable.
+- `./verify-url.sh` passed `/`, `/demo`, `/privacy`, `/terms`, and the styled
+  missing route at both 1280 px and 390 px. The deployed missing route returned
+  HTTP 404.
+- The 32-test browser suite passed against production. It covers keyboard-only
+  use, skip-link and route focus, visible focus contrast, 44 px touch targets,
+  reduced motion, mobile overflow, empty/error recovery, generated-artifact
+  use, and desktop/mobile semantics.
+- Playwright's axe integration found zero serious or critical WCAG 2 A/AA
+  findings on every route. Lighthouse accessibility scored 100 on all four
+  measured pages.
+- Privacy checks observed only same-origin GET requests. Demo localStorage,
+  sessionStorage, IndexedDB, and OPFS remained empty. There is no upload,
+  account, analytics, payment, AI, or backend path.
+- The site has no service worker and makes no site-offline claim. The CLI's
+  generated `file:` review is the offline surface; its browser regression made
+  no network requests and logged no errors. PWA update testing is therefore not
+  applicable.
+- The existing copy audit, visual thesis, one-click demo sandbox, and passing
+  product behavior were unchanged by this test-harness-only repair.
 
-Lighthouse 13 mobile results:
+## Performance and delivery
+
+The production build contains 9,798 bytes of JavaScript (4.02 KiB gzip) and
+7,781 bytes of CSS (2.52 KiB gzip). Both remain below the product budgets.
 
 | Target | Performance | Accessibility | Best practices | SEO | LCP | CLS | TBT |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Local home | 98 | 100 | 100 | 100 | 2.405 s | 0 | 0 ms |
-| Local demo | 100 | 100 | 100 | 100 | 0.935 s | 0 | 1 ms |
-| Live home | 99 | 100 | 100 | 100 | 1.953 s | 0 | 31 ms |
-| Live demo | 100 | 100 | 100 | 100 | 0.800 s | 0 | 21 ms |
+| Local home | 98 | 100 | 100 | 100 | 2.473 s | 0 | 15 ms |
+| Local demo | 100 | 100 | 100 | 100 | 0.927 s | 0 | 0 ms |
+| Live home | 99 | 100 | 100 | 100 | 1.959 s | 0 | 54 ms |
+| Live demo | 100 | 100 | 100 | 100 | 0.812 s | 0 | 35 ms |
 
-Reports and screenshots are in `.factory/evidence/` with the `repair-5`
-prefix.
+Lighthouse JSON is stored in `.factory/evidence/repair-6-*-home.json` and
+`.factory/evidence/repair-6-*-demo.json`.
 
-## Deployment and live identity
-
-The static artifact was deployed with:
+The deployment was produced with:
 
 ```sh
+npm run build
 /opt/fleet/lib/deploy-static.sh log-incident-bundle dist/site
 ```
 
-Azure Static Web Apps deployment
-`cd184413-70a6-422e-bc62-ab9645ab21df` succeeded. After deployment:
-
-```text
-./verify-url.sh https://log-incident-bundle.sociobot.in   PASS — real 404, both viewports
-PLAYWRIGHT_BASE_URL=https://log-incident-bundle.sociobot.in npx playwright test
-                                                           PASS — 32 tests
-```
-
-Every public file matches `dist/site` byte-for-byte. Representative SHA-256:
+The live HTML, JavaScript, CSS, images, icons, robots file, sitemap, and 404
+assets match `dist/site` byte-for-byte. Representative SHA-256 values are:
 
 ```text
 index.html                    df4755f115e2910510f2945d5bbb1db3edaf8e87784eb9e07e3d631e744cc8a0
@@ -135,14 +119,13 @@ assets/index-DXoUVGA3.js      c25e07f1f364b9ee10badc9082e3d8d934b79fb09aba6ac1a4
 assets/index-CU2Lx6ko.css     217b39d8b05c8ad1d73d25eb911a49a6d49203a87c597ed97898c2d6d689d08d
 ```
 
-Live HTML uses 30-second revalidation. Hashed JS/CSS use
-`max-age=31536000, immutable`. Responses include HSTS, `nosniff`, `DENY`
-framing, strict-origin referrer policy, and the self-only CSP with
-`frame-ancestors 'none'`. Unknown paths return the styled page with HTTP 404.
+Live HTML uses 30-second revalidation. Hashed assets use one-year immutable
+caching. Responses include HSTS, `nosniff`, `DENY` framing,
+`strict-origin-when-cross-origin`, and the self-only CSP with
+`frame-ancestors 'none'`.
 
-## Known gaps / next steps
+## Known gaps and next steps
 
 No release-blocking gaps are known. Redaction remains intentionally
-pattern-based, so the CLI and artifact continue to instruct users to review the
-copy before sharing. Registry publication remains a factory release action; no
-package was published from this worker.
+pattern-based, so users are still told to review the finite copy before
+sharing. Crate publication remains a factory release action.
