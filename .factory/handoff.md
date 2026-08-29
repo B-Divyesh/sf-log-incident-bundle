@@ -29,11 +29,13 @@ npx playwright test --grep 'How it works|zero-record|390px|keyboard|accessibilit
 
 The local production build is 9.72 KB JavaScript (3.97 KB gzip) and 7.60 KB CSS (2.48 KB gzip). The local URL verifier reported one `h1`, one `main`, `lang=en`, complete image alt text, no overflow, no console/page errors, and no serious or critical axe violations on every listed route at desktop and 390 px. The full suite also checks same-origin-only site runtime requests, no demo/browser storage, CSV download, reduced-motion-compatible UI, focus, and demo reset/exit cleanup. There is no service worker, paid flow, account, backend, or AI request in this static CLI companion, so update, sign-in, billing, and live-AI checks are not applicable.
 
+After deployment, `./verify-url.sh https://log-incident-bundle.sociobot.in` passed the same five routes at both widths (including the real HTTP 404), and `PLAYWRIGHT_BASE_URL=https://log-incident-bundle.sociobot.in npx playwright test` passed all 29 browser tests. Live `index.html`, JavaScript, CSS, hero art, and 404 bytes exactly match `dist/site`; the deployed JavaScript is `assets/index-BmEE3pkD.js` with SHA-256 `e25f2c500b46a248e6c5391bd8a994e3abee92cad51e8c782787507ad622ef14`. The live response policy has HSTS, `nosniff`, `DENY` framing, strict-origin referrer policy, the self-only CSP, 30-second HTML revalidation, and immutable hashed assets.
+
 `cargo package` was installed into a fresh temporary consumer root with `cargo install --path target/package/log-incident-bundle-0.1.1 --root …`. The installed binary passed `--version`, `--help`, `--demo --json`, and the exact short-bearer/quoted-secret stdin regression; no raw secret appeared in the generated review.
 
 ## Delivery
 
-The static deployment configuration remains `public/staticwebapp.config.json`: it supplies the SPA routes, real 404 override, self-only security policy, and immutable hashed-asset caching. Deployment is triggered by pushing this approved repair commit to `main`.
+The static deployment configuration remains `public/staticwebapp.config.json`: it supplies the SPA routes, real 404 override, self-only security policy, and immutable hashed-asset caching. The repair was deployed with `/opt/fleet/lib/deploy-static.sh log-incident-bundle dist/site`; Azure Static Web Apps completed deployment `c14449bc-1893-4e5a-bf6b-bfed1e3906af` to `https://log-incident-bundle.sociobot.in`.
 
 ## Known gaps / next steps
 
