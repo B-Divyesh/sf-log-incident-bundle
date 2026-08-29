@@ -99,6 +99,12 @@ test('@claim:portable-html generated bundle renders, searches, exports, and show
   expect(reviewSkipBox!.height).toBeGreaterThanOrEqual(44);
   await page.keyboard.press('Enter');
   await expect(page.locator('#main')).toBeFocused();
+  await page.evaluate(axe.source);
+  const reviewAxeViolations = await page.evaluate(async () => {
+    const results = await (window as unknown as { axe: typeof axe }).axe.run();
+    return results.violations.filter(issue => issue.impact === 'serious' || issue.impact === 'critical');
+  });
+  expect(reviewAxeViolations).toEqual([]);
   await expect(page.locator('#rows tr')).toHaveCount(6);
   await expect(page.getByText('SHA-256')).toBeVisible();
   await page.getByLabel('Search evidence').fill('timeout');
@@ -502,6 +508,12 @@ test('390px generated CLI artifact has no page-level overflow', async ({ page })
   const bundle = await makeBundle(sample, ['--from', '2026-08-22T14:01:00Z', '--to', '2026-08-22T14:02:00Z', '--correlate', 'trace_id']);
   await page.goto(bundle.url);
   await expect(page.locator('#sources code').last()).toHaveText(/^[a-f0-9]{64}$/);
+  await page.keyboard.press('Tab');
+  const reviewSkip = page.getByRole('link', { name: 'Skip to review' });
+  await expect(reviewSkip).toBeFocused();
+  const reviewSkipBox = await reviewSkip.boundingBox();
+  expect(reviewSkipBox!.width).toBeGreaterThanOrEqual(44);
+  expect(reviewSkipBox!.height).toBeGreaterThanOrEqual(44);
   expect(await page.evaluate(() => ({ viewport: window.innerWidth, document: document.documentElement.scrollWidth }))).toEqual({ viewport: 390, document: 390 });
 });
 
