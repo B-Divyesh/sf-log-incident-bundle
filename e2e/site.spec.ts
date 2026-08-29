@@ -259,6 +259,27 @@ test('@claim:bounds-correlation CLI applies time bounds and follows matching tra
   const html = await readFile(bundle.output, 'utf8');
   expect(JSON.parse(html.match(/<script id="bundle-data" type="application\/json">(.*?)<\/script>/s)![1]).records).toHaveLength(6);
   expect(html).not.toContain('healthcheck=ok');
+
+  const collidingFields = [
+    '2026-08-22T14:01:00Z trace_id=trace-A request_id=req-B event=in-window',
+    '2026-08-22T14:05:00Z trace_id=req-B request_id=req-X event=wrong-cross-field-match',
+    '2026-08-22T14:06:00Z trace_id=trace-A request_id=req-Y event=correct-trace-match',
+    '2026-08-22T14:07:00Z trace_id=trace-Z request_id=req-B event=correct-request-match'
+  ].join('\n');
+  const multiFieldBundle = await makeBundle(collidingFields, [
+    '--from', '2026-08-22T14:01:00Z',
+    '--to', '2026-08-22T14:01:00Z',
+    '--correlate', 'trace_id',
+    '--correlate', 'request_id'
+  ]);
+  const multiFieldHtml = await readFile(multiFieldBundle.output, 'utf8');
+  const multiFieldRecords = JSON.parse(
+    multiFieldHtml.match(/<script id="bundle-data" type="application\/json">(.*?)<\/script>/s)![1]
+  ).records as Array<{ text: string }>;
+  expect(multiFieldRecords).toHaveLength(3);
+  expect(multiFieldRecords.map(record => record.text).join('\n')).not.toContain('wrong-cross-field-match');
+  expect(multiFieldRecords.map(record => record.text).join('\n')).toContain('correct-trace-match');
+  expect(multiFieldRecords.map(record => record.text).join('\n')).toContain('correct-request-match');
 });
 
 test('@claim:custom-redaction CLI applies reviewable local regex rules', async () => {

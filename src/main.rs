@@ -408,15 +408,21 @@ fn bound_and_correlate(
             .map(|index| records[index].clone())
             .collect());
     }
-    let mut values = BTreeSet::new();
+    // Correlation values belong to the field that produced them. Pooling all
+    // values permits a trace ID to match a request ID (or the reverse), which
+    // can add an unrelated record to a bounded review.
+    let mut values_by_field: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for &index in &initial {
         for field in fields {
             if let Some(value) = field_value(&records[index].text, field) {
-                values.insert(value);
+                values_by_field
+                    .entry(field.clone())
+                    .or_default()
+                    .insert(value);
             }
         }
     }
-    if values.is_empty() {
+    if values_by_field.is_empty() {
         return Ok(initial
             .into_iter()
             .map(|index| records[index].clone())
@@ -425,7 +431,11 @@ fn bound_and_correlate(
     let mut selected: BTreeSet<usize> = initial.into_iter().collect();
     for (index, record) in records.iter().enumerate() {
         if fields.iter().any(|field| {
-            field_value(&record.text, field).is_some_and(|value| values.contains(&value))
+            field_value(&record.text, field).is_some_and(|value| {
+                values_by_field
+                    .get(field)
+                    .is_some_and(|values| values.contains(&value))
+            })
         }) {
             selected.insert(index);
         }
@@ -718,6 +728,44 @@ mod tests {
         )
         .unwrap();
         assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn correlation_values_do_not_cross_match_between_fields() {
+        let records = parse_records(&[(
+            "x".into(),
+            concat!(
+                "2026-08-22T14:01:00Z trace_id=trace-A request_id=req-B event=in-window\n",
+                "2026-08-22T14:05:00Z trace_id=req-B request_id=req-X event=wrong-cross-field-match\n",
+                "2026-08-22T14:06:00Z trace_id=trace-A request_id=req-Y event=correct-trace-match\n",
+                "2026-08-22T14:07:00Z trace_id=trace-Z request_id=req-B event=correct-request-match",
+            )
+            .into(),
+        )]);
+        let result = bound_and_correlate(
+            records,
+            Some("2026-08-22T14:01:00Z"),
+            Some("2026-08-22T14:01:00Z"),
+            &["trace_id".into(), "request_id".into()],
+        )
+        .unwrap();
+
+        assert_eq!(result.len(), 3);
+        assert!(
+            result
+                .iter()
+                .all(|record| !record.text.contains("wrong-cross-field-match"))
+        );
+        assert!(
+            result
+                .iter()
+                .any(|record| record.text.contains("correct-trace-match"))
+        );
+        assert!(
+            result
+                .iter()
+                .any(|record| record.text.contains("correct-request-match"))
+        );
     }
 
     #[test]
